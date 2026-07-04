@@ -1,0 +1,2 @@
+export const GET_OK_SERVICE_TOKEN = Symbol('GET_OK_SERVICE');
+export const HEALTH_CHECK_USE_CASE_TOKEN = Symbol('HEALTH_CHECK_USE_CASE');

@@ -14,6 +14,12 @@
     "sourceMap": true,
     "outDir": "./dist",
     "baseUrl": "./",
+    "paths": {
+      "~application/*": ["./src/application/*"],
+      "~domain/*": ["./src/domain/*"],
+      "~infrastructure/*": ["./src/infrastructure/*"],
+      "~presentation/*": ["./src/presentation/*"]
+    },
     "incremental": true,
     "skipLibCheck": true,
     "strictNullChecks": true,

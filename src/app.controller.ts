@@ -1,5 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
-// biome-ignore lint/style/useImportType: import for class
+// biome-ignore lint/style/useImportType:NestJS DI requires the actual class at runtime
 import { AppService } from './app.service';
 
 @Controller()
