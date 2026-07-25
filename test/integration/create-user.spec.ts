@@ -1,32 +1,34 @@
 import 'reflect-metadata';
 
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
-import type { PGlite } from '@electric-sql/pglite';
 import { ConfigModule } from '@nestjs/config';
 import { Test, type TestingModule } from '@nestjs/testing';
+import { DB_CLEANUP_TOKEN, TestDatabaseModule } from 'test/utils/test-database.module';
 import type { UserRepository } from '~application/repositories/user.repository';
 import { Role } from '~domain/entities/user.entity';
-import { PG_CLIENT_TOKEN, USER_REPOSITORY_TOKEN } from '~infrastructure/config/provider-tokens';
+import { USER_REPOSITORY_TOKEN } from '~infrastructure/config/provider-tokens';
 import { DatabaseModule } from '~infrastructure/database/database.module';
 import { RepositoriesModule } from '~infrastructure/repositories/repositories.module';
 
 describe('create user integration test', () => {
-  let module: TestingModule;
+  let moduleRef: TestingModule;
   let userRepository: UserRepository;
 
   beforeAll(async () => {
-    module = await Test.createTestingModule({
+    moduleRef = await Test.createTestingModule({
       imports: [ConfigModule.forRoot({ isGlobal: true }), DatabaseModule, RepositoriesModule],
-    }).compile();
+    })
+      .overrideModule(DatabaseModule)
+      .useModule(TestDatabaseModule)
+      .compile();
 
-    userRepository = module.get<UserRepository>(USER_REPOSITORY_TOKEN);
+    userRepository = moduleRef.get<UserRepository>(USER_REPOSITORY_TOKEN);
   });
 
   afterAll(async () => {
-    const pgClient = module.get<PGlite>(PG_CLIENT_TOKEN);
-    await pgClient.close().catch((error) => {
-      console.error('Failed to close database', error);
-    });
+    const cleanup = moduleRef.get<{ close: () => Promise<void> }>(DB_CLEANUP_TOKEN);
+    await cleanup.close();
+    await moduleRef.close();
   });
 
   it('should create a user', async () => {
