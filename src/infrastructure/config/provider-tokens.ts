@@ -1,2 +1,12 @@
+export const DRIZZLE_DB_TOKEN = Symbol('DRIZZLE_DB');
+export const PG_CLIENT_TOKEN = Symbol('PG_CLIENT');
+
 export const GET_OK_SERVICE_TOKEN = Symbol('GET_OK_SERVICE');
+export const AUTH_SERVICE_TOKEN = Symbol('AUTH_SERVICE');
+
+export const COMMENT_REPOSITORY_TOKEN = Symbol('COMMENT_REPOSITORY');
+export const IMAGE_REPOSITORY_TOKEN = Symbol('IMAGE_REPOSITORY');
+export const USER_REPOSITORY_TOKEN = Symbol('USER_REPOSITORY');
+
+export const CREATE_ACCOUNT_USE_CASE_TOKEN = Symbol('CREATE_ACCOUNT_USE_CASE');
 export const HEALTH_CHECK_USE_CASE_TOKEN = Symbol('HEALTH_CHECK_USE_CASE');
