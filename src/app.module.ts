@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { AppConfigModule } from '~infrastructure/config/config.module';
 import { DatabaseModule } from '~infrastructure/database/database.module';
 import { RepositoriesModule } from '~infrastructure/repositories/repositories.module';
 import { ServicesModule } from '~infrastructure/services/services.module';
@@ -9,7 +9,7 @@ import { AppService } from './app.service';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    AppConfigModule,
     DatabaseModule,
     RepositoriesModule,
     ServicesModule,
