@@ -3,7 +3,7 @@ import { AppConfigModule } from '~infrastructure/config/config.module';
 import { DatabaseModule } from '~infrastructure/database/database.module';
 import { RepositoriesModule } from '~infrastructure/repositories/repositories.module';
 import { ServicesModule } from '~infrastructure/services/services.module';
-import { HealthCheckModule, UserModule } from '~presentation/modules';
+import { AuthModule, HealthCheckModule, UserModule } from '~presentation/modules';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -13,6 +13,7 @@ import { AppService } from './app.service';
     DatabaseModule,
     RepositoriesModule,
     ServicesModule,
+    AuthModule,
     HealthCheckModule,
     UserModule,
   ],
