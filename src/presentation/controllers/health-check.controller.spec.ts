@@ -1,24 +1,26 @@
-import { describe, expect, it } from 'bun:test';
-import { beforeEach } from 'node:test';
+import 'reflect-metadata';
+
+import { beforeEach, describe, expect, it } from 'bun:test';
 import { Test, type TestingModule } from '@nestjs/testing';
 import type { GetOkService } from '~application/services/get-ok.service';
 import { HealthCheckUseCase } from '~application/use-cases/health-check.use-case';
-import { GET_OK_SERVICE_TOKEN, HEALTH_CHECK_USE_CASE_TOKEN } from '~infrastructure/config/provider-tokens';
-import { ServicesModule } from '~infrastructure/services/services.module';
+import { HEALTH_CHECK_USE_CASE_TOKEN } from '~infrastructure/config/provider-tokens';
 import { HealthCheckController } from '~presentation/controllers/health-check.controller';
+
+const mockGetOkService: GetOkService = {
+  getOk: () => 'Ok',
+};
 
 describe('HealthCheckController', () => {
   let controller: HealthCheckController;
 
   beforeEach(async () => {
     const app: TestingModule = await Test.createTestingModule({
-      imports: [ServicesModule],
       controllers: [HealthCheckController],
       providers: [
         {
           provide: HEALTH_CHECK_USE_CASE_TOKEN,
-          useFactory: (getOkService: GetOkService) => new HealthCheckUseCase(getOkService),
-          inject: [GET_OK_SERVICE_TOKEN],
+          useValue: new HealthCheckUseCase(mockGetOkService),
         },
       ],
     }).compile();
@@ -27,7 +29,7 @@ describe('HealthCheckController', () => {
   });
 
   describe('root', () => {
-    it('should return "Ok"', async () => {
+    it('should return "Ok"', () => {
       expect(controller.getHealth()).toBe('Ok');
     });
   });

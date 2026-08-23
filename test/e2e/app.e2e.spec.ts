@@ -9,6 +9,8 @@ describe('AppController (e2e)', () => {
   let serverUrl: string;
 
   beforeAll(async () => {
+    process.env.JWT_SECRET ||= 'test-jwt-secret';
+    process.env.DB_URL ||= 'postgresql://user:password@localhost:5432/blog';
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
