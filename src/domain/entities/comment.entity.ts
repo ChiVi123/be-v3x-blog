@@ -1,7 +1,7 @@
 import type { CommentId, PostId, UserId } from '~domain/types/branded';
-import { BaseEntity } from './base.entity';
+import { BaseEntity_legacy } from './base.entity';
 
-export class CommentEntity extends BaseEntity<CommentId> {
+export class CommentEntity extends BaseEntity_legacy<CommentId> {
   private _content: string;
   private _likes: UserId[];
   private _postId: PostId;

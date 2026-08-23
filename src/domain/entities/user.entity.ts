@@ -1,12 +1,12 @@
 import type { ImageId, UserId } from '~domain/types/branded';
-import { BaseEntity } from './base.entity';
+import { type BaseEntity, BaseEntity_legacy } from './base.entity';
 
 export enum Role {
   ADMIN = 'admin',
   USER = 'user',
 }
 
-export class UserEntity extends BaseEntity<UserId> {
+export class UserEntity_legacy extends BaseEntity_legacy<UserId> {
   private _username: string;
   private _email: string;
   private _password: string;
@@ -60,8 +60,16 @@ export class UserEntity extends BaseEntity<UserId> {
     avatarId: ImageId | null,
     createdAt: Date,
     updatedAt: Date,
-  ): UserEntity {
-    const user = new UserEntity(id, username, email, password, role, avatarId, createdAt, updatedAt);
+  ): UserEntity_legacy {
+    const user = new UserEntity_legacy(id, username, email, password, role, avatarId, createdAt, updatedAt);
     return user;
   }
+}
+
+export interface UserEntity extends BaseEntity<UserId> {
+  username: string;
+  email: string;
+  password: string;
+  role: Role;
+  avatarId: ImageId | null;
 }

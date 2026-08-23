@@ -1,5 +1,5 @@
 import type { ImageId } from '~domain/types/branded';
-import { BaseEntity } from './base.entity';
+import { BaseEntity_legacy } from './base.entity';
 
 export type ImageMetadata = {
   width: number;
@@ -8,7 +8,7 @@ export type ImageMetadata = {
   size: number;
 };
 
-export class ImageEntity extends BaseEntity<ImageId> {
+export class ImageEntity extends BaseEntity_legacy<ImageId> {
   private _url: string;
   private _alt: string;
   private _remoteKey: string;

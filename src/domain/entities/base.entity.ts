@@ -1,4 +1,4 @@
-export abstract class BaseEntity<T> {
+export abstract class BaseEntity_legacy<T> {
   protected _id: T;
   protected _createdAt: Date;
   protected _updatedAt: Date;
@@ -20,4 +20,10 @@ export abstract class BaseEntity<T> {
   get updatedAt(): Date {
     return this._updatedAt;
   }
+}
+
+export interface BaseEntity<T> {
+  id: T;
+  createdAt: Date;
+  updatedAt: Date;
 }

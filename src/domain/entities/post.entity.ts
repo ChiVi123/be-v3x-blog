@@ -1,13 +1,13 @@
 import type { ImageEntity } from '~domain/entities/image.entity';
-import type { UserEntity } from '~domain/entities/user.entity';
+import type { UserEntity_legacy } from '~domain/entities/user.entity';
 import type { PostId } from '~domain/types/branded';
-import { BaseEntity } from './base.entity';
+import { BaseEntity_legacy } from './base.entity';
 
-export class PostEntity extends BaseEntity<PostId> {
+export class PostEntity extends BaseEntity_legacy<PostId> {
   private _title: string;
   private _content: string;
   private _category: string;
-  private _author: UserEntity;
+  private _author: UserEntity_legacy;
   private _thumbnail: ImageEntity;
 
   constructor(
@@ -15,7 +15,7 @@ export class PostEntity extends BaseEntity<PostId> {
     title: string,
     content: string,
     category: string,
-    author: UserEntity,
+    author: UserEntity_legacy,
     thumbnail: ImageEntity,
     createdAt: Date,
     updatedAt: Date,
@@ -40,7 +40,7 @@ export class PostEntity extends BaseEntity<PostId> {
     return this._category;
   }
 
-  get author(): UserEntity {
+  get author(): UserEntity_legacy {
     return this._author;
   }
 
@@ -53,7 +53,7 @@ export class PostEntity extends BaseEntity<PostId> {
     title: string,
     content: string,
     category: string,
-    author: UserEntity,
+    author: UserEntity_legacy,
     thumbnail: ImageEntity,
     createdAt: Date,
     updatedAt: Date,
