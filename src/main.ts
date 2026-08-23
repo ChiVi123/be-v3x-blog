@@ -3,6 +3,8 @@ import { NestFactory } from '@nestjs/core';
 import { AppConfigService } from '~infrastructure/config/env';
 import { AppModule } from './app.module';
 
+const logger = new Logger('Bootstrap');
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const config = app.get(AppConfigService);
@@ -11,11 +13,14 @@ async function bootstrap() {
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
   await app.listen(port);
 
+  logger.log(`Application is running on: http://localhost:${port}`);
+  logger.log('Press q + Enter to close the application');
+
   process.stdin.on('data', (data) => {
     const key = data.toString().trim().toLowerCase();
     if (key === 'q') {
       app.close().then(() => {
-        Logger.log('Application closed gracefully', 'Bootstrap');
+        logger.log('Application closed gracefully');
         process.exit(0);
       });
     }

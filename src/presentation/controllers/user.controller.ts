@@ -1,5 +1,5 @@
 import { Body, Controller, Inject, Post } from '@nestjs/common';
-import type { UserInput } from '~application/repositories/user.repository';
+import type { UserCreateInput } from '~application/repositories/user.repository';
 import type { CreateAccountUseCase } from '~application/use-cases/create-account.use-case';
 import { CREATE_ACCOUNT_USE_CASE_TOKEN } from '~infrastructure/config/provider-tokens';
 
@@ -11,7 +11,7 @@ export class UserController {
   ) {}
 
   @Post()
-  async createAccount(@Body() user: UserInput) {
+  async createAccount(@Body() user: UserCreateInput) {
     const userEntity = await this.createAccountUseCase.execute(user);
     return {
       id: userEntity.id,
