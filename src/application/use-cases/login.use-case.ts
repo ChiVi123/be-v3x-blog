@@ -1,7 +1,22 @@
 import type { SessionRepository } from '~application/repositories/session.repository';
 import type { UserRepository } from '~application/repositories/user.repository';
 import type { AuthService } from '~application/services/auth.service';
-import type { SessionEntity } from '~domain/entities/session.entity';
+
+type ClientContext = {
+  ipAddress: string;
+  userAgent: string;
+};
+
+export type LoginUseCaseParams = {
+  email: string;
+  password: string;
+  clientContext: ClientContext;
+};
+
+export type LoginUseCaseResult = {
+  accessToken: string;
+  refreshToken: string;
+};
 
 export class LoginUseCase {
   constructor(
@@ -10,7 +25,7 @@ export class LoginUseCase {
     private readonly authService: AuthService,
   ) {}
 
-  async execute(email: string, password: string): Promise<SessionEntity> {
+  async execute({ email, password, clientContext }: LoginUseCaseParams): Promise<LoginUseCaseResult> {
     const user = await this.userRepository.findByEmail(email);
     if (!user) {
       throw new Error('Invalid email or password');
@@ -21,7 +36,20 @@ export class LoginUseCase {
       throw new Error('Invalid email or password');
     }
 
-    const sessionEntity = await this.sessionRepository.create(user.id);
-    return sessionEntity;
+    const refreshToken = await this.sessionRepository.create({
+      userId: user.id,
+      ipAddress: clientContext.ipAddress,
+      userAgent: clientContext.userAgent,
+      refreshToken: this.authService.generateRefreshToken(),
+      expiresAt: this.authService.createRefreshTokenExpiryDate(),
+    });
+    return {
+      accessToken: this.authService.generateAccessToken({
+        id: user.id,
+        email: user.email,
+        role: user.role,
+      }),
+      refreshToken,
+    };
   }
 }
