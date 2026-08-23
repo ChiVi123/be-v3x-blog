@@ -4,21 +4,32 @@ import { describe, expect, it } from 'bun:test';
 import { Environment, validateEnvironment } from './env';
 
 const DB_URL_VALID = 'postgresql://user:password@localhost:5432/blog';
+const JWT_SECRET_VALID = 'super-secret-key';
 const PORT_DEFAULT = '8080';
 
 describe('validateEnvironment', () => {
-  it('should pass with a postgres URL (top-level domain is not required)', () => {
+  it('should pass with a postgres URL and JWT_SECRET (top-level domain is not required)', () => {
+    expect(() =>
+      validateEnvironment({
+        DB_URL: DB_URL_VALID,
+        JWT_SECRET: JWT_SECRET_VALID,
+      }),
+    ).not.toThrow();
+  });
+
+  it('should fail when missing JWT_SECRET', () => {
     expect(() =>
       validateEnvironment({
         DB_URL: DB_URL_VALID,
       }),
-    ).not.toThrow();
+    ).toThrow();
   });
 
   it('should fail with a non-postgres URL', () => {
     expect(() =>
       validateEnvironment({
         DB_URL: 'mongodb://localhost:27017/blog',
+        JWT_SECRET: JWT_SECRET_VALID,
       }),
     ).toThrow();
   });
@@ -27,6 +38,7 @@ describe('validateEnvironment', () => {
     expect(() =>
       validateEnvironment({
         DB_URL: '        ',
+        JWT_SECRET: JWT_SECRET_VALID,
       }),
     ).toThrow();
   });
@@ -35,18 +47,20 @@ describe('validateEnvironment', () => {
     expect(() =>
       validateEnvironment({
         DB_URL: '',
+        JWT_SECRET: JWT_SECRET_VALID,
       }),
     ).toThrow();
   });
 
   it('should fail with an undefined DB_URL', () => {
-    expect(() => validateEnvironment({})).toThrow();
+    expect(() => validateEnvironment({ JWT_SECRET: JWT_SECRET_VALID })).toThrow();
   });
 
   it('should fail with a null DB_URL', () => {
     expect(() =>
       validateEnvironment({
         DB_URL: null,
+        JWT_SECRET: JWT_SECRET_VALID,
       }),
     ).toThrow();
   });
@@ -54,6 +68,7 @@ describe('validateEnvironment', () => {
   it('should pass with a valid port', () => {
     const env = {
       DB_URL: DB_URL_VALID,
+      JWT_SECRET: JWT_SECRET_VALID,
       PORT: '5000',
     };
 
@@ -68,6 +83,7 @@ describe('validateEnvironment', () => {
   it('should pass when missing PORT', () => {
     const env = {
       DB_URL: DB_URL_VALID,
+      JWT_SECRET: JWT_SECRET_VALID,
     };
 
     expect(() => validateEnvironment(env)).not.toThrow();
@@ -82,6 +98,7 @@ describe('validateEnvironment', () => {
     expect(() =>
       validateEnvironment({
         DB_URL: DB_URL_VALID,
+        JWT_SECRET: JWT_SECRET_VALID,
         PORT: 'invalid-port',
       }),
     ).toThrow();
@@ -91,6 +108,7 @@ describe('validateEnvironment', () => {
     expect(() =>
       validateEnvironment({
         DB_URL: DB_URL_VALID,
+        JWT_SECRET: JWT_SECRET_VALID,
         PORT: '65536',
       }),
     ).toThrow();
@@ -100,6 +118,7 @@ describe('validateEnvironment', () => {
     expect(() =>
       validateEnvironment({
         DB_URL: DB_URL_VALID,
+        JWT_SECRET: JWT_SECRET_VALID,
         PORT: '-1',
       }),
     ).toThrow();
@@ -109,7 +128,32 @@ describe('validateEnvironment', () => {
     expect(() =>
       validateEnvironment({
         DB_URL: DB_URL_VALID,
+        JWT_SECRET: JWT_SECRET_VALID,
         PORT: '8080.5',
+      }),
+    ).toThrow();
+  });
+
+  it('should pass with valid expiry values (ms string or number)', () => {
+    const env = {
+      DB_URL: DB_URL_VALID,
+      JWT_SECRET: JWT_SECRET_VALID,
+      ACCESS_TOKEN_EXPIRY: '30m',
+      REFRESH_TOKEN_EXPIRY: '14d',
+    };
+
+    expect(() => validateEnvironment(env)).not.toThrow();
+    const validated = validateEnvironment(env);
+    expect(validated.ACCESS_TOKEN_EXPIRY).toBe('30m');
+    expect(validated.REFRESH_TOKEN_EXPIRY).toBe('14d');
+  });
+
+  it('should fail with invalid expiry values', () => {
+    expect(() =>
+      validateEnvironment({
+        DB_URL: DB_URL_VALID,
+        JWT_SECRET: JWT_SECRET_VALID,
+        ACCESS_TOKEN_EXPIRY: 'invalid-expiry-value',
       }),
     ).toThrow();
   });
