@@ -42,10 +42,12 @@ describe('AuthController (e2e)', () => {
     userRepository = moduleFixture.get<UserRepository>(USER_REPOSITORY_TOKEN);
 
     // Seed test user
+    const bcrypt = await import('bcrypt');
+    const hashedPassword = await bcrypt.hash('password123', 10);
     await userRepository.create({
       username: 'auth_test_user',
       email: 'auth_test@example.com',
-      password: 'password123',
+      password: hashedPassword,
       role: Role.USER,
       avatarId: null,
     });

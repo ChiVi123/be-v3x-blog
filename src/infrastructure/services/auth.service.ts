@@ -19,10 +19,8 @@ export class AuthServiceImpl implements AuthService {
     return bcrypt.hash(password, SALT_ROUNDS);
   }
 
-  // TODO: we can't use compare by bcrypt because of password's user stored in plain text (fix in the future)
   async verifyPassword(password: string, hash: string): Promise<boolean> {
-    // return bcrypt.compare(password, hash);
-    return password === hash;
+    return bcrypt.compare(password, hash);
   }
 
   generateAccessToken(user: AccessTokenPayload): string {
