@@ -1,12 +1,12 @@
 import { Body, Controller, Inject, Post } from '@nestjs/common';
 import type { UserCreateInput } from '~application/repositories/user.repository';
 import type { CreateAccountUseCase } from '~application/use-cases/create-account.use-case';
-import { CREATE_ACCOUNT_USE_CASE_TOKEN } from '~infrastructure/config/provider-tokens';
+import { REGISTER_USE_CASE_TOKEN } from '~infrastructure/config/provider-tokens';
 
 @Controller('users')
 export class UserController {
   constructor(
-    @Inject(CREATE_ACCOUNT_USE_CASE_TOKEN)
+    @Inject(REGISTER_USE_CASE_TOKEN)
     private readonly createAccountUseCase: CreateAccountUseCase,
   ) {}
 
