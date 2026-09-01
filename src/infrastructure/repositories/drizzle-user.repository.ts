@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { eq } from 'drizzle-orm';
+import { count, eq } from 'drizzle-orm';
 import type {
   UserCreateInput,
   UserOutput,
@@ -47,5 +47,10 @@ export class DrizzleUserRepository implements UserRepository {
   async findByEmail(email: string): Promise<UserEntity | null> {
     const user = await this.db.query.users.findFirst({ where: { email: { eq: email } } });
     return user ?? null;
+  }
+
+  async isExistByEmail(email: string): Promise<boolean> {
+    const [result] = await this.db.select({ count: count() }).from(users).where(eq(users.email, email));
+    return result?.count > 0;
   }
 }
