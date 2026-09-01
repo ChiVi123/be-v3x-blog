@@ -19,6 +19,8 @@ export class AuthController {
     private readonly registerUseCase: RegisterUseCase,
   ) {}
 
+  // TODO: Check x-forwarded-for header for ip
+  // TODO: Validate IP Address
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(@Body() body: LoginRequest, @Req() req: Request) {
@@ -26,7 +28,7 @@ export class AuthController {
       email: body.email,
       password: body.password,
       clientContext: {
-        ipAddress: req.ip ?? '0.0.0.0', // TODO: Check x-forwarded-for header
+        ipAddress: req.ip ?? '0.0.0.0',
         userAgent: req.headers['user-agent'] ?? 'Unknown',
       },
     });
