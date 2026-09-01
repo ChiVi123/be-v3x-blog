@@ -3,14 +3,18 @@ import 'reflect-metadata';
 import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import { Test, type TestingModule } from '@nestjs/testing';
 import type { Request } from 'express';
+import type { RegisterUseCase } from '~application/use-cases/auth/register.use-case';
 import type { LoginUseCase } from '~application/use-cases/login.use-case';
-import { LOGIN_USE_CASE_TOKEN } from '~infrastructure/config/provider-tokens';
+import { Role } from '~domain/entities/user.entity';
+import { LOGIN_USE_CASE_TOKEN, REGISTER_USE_CASE_TOKEN } from '~infrastructure/config/provider-tokens';
 import { AuthController } from '~presentation/controllers/auth.controller';
+import type { RegisterRequest } from '~presentation/dtos/auth/register.dto';
 import type { LoginRequest } from '~presentation/dtos/login.dto';
 
 describe('AuthController', () => {
   let controller: AuthController;
   let mockLoginUseCase: { execute: ReturnType<typeof mock> };
+  let mockRegisterUseCase: { execute: ReturnType<typeof mock> };
 
   beforeEach(async () => {
     mockLoginUseCase = {
@@ -20,12 +24,20 @@ describe('AuthController', () => {
       })),
     };
 
+    mockRegisterUseCase = {
+      execute: mock(async () => undefined),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
       providers: [
         {
           provide: LOGIN_USE_CASE_TOKEN,
           useValue: mockLoginUseCase as unknown as LoginUseCase,
+        },
+        {
+          provide: REGISTER_USE_CASE_TOKEN,
+          useValue: mockRegisterUseCase as unknown as RegisterUseCase,
         },
       ],
     }).compile();
@@ -128,6 +140,58 @@ describe('AuthController', () => {
           userAgent: 'Unknown',
         },
       });
+    });
+  });
+
+  describe('register', () => {
+    it('should pass register parameters with role to registerUseCase and return the result', async () => {
+      const body: RegisterRequest = {
+        email: 'test@example.com',
+        password: 'password123',
+        username: 'testuser',
+        role: Role.ADMIN,
+      };
+
+      const result = await controller.register(body);
+
+      expect(mockRegisterUseCase.execute).toHaveBeenCalledWith({
+        email: 'test@example.com',
+        password: 'password123',
+        username: 'testuser',
+        role: Role.ADMIN,
+      });
+      expect(result).toBeUndefined();
+    });
+
+    it('should pass register parameters without optional role to registerUseCase', async () => {
+      const body: RegisterRequest = {
+        email: 'test@example.com',
+        password: 'password123',
+        username: 'testuser',
+      };
+
+      await controller.register(body);
+
+      expect(mockRegisterUseCase.execute).toHaveBeenCalledWith({
+        email: 'test@example.com',
+        password: 'password123',
+        username: 'testuser',
+        role: undefined,
+      });
+    });
+
+    it('should propagate errors when registerUseCase throws', async () => {
+      const body: RegisterRequest = {
+        email: 'test@example.com',
+        password: 'password123',
+        username: 'testuser',
+      };
+
+      mockRegisterUseCase.execute = mock(async () => {
+        throw new Error('User already exists');
+      });
+
+      expect(controller.register(body)).rejects.toThrow('User already exists');
     });
   });
 });
