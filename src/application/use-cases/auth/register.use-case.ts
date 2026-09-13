@@ -1,6 +1,7 @@
 import type { UserRepository } from '~application/repositories/user.repository';
 import type { AuthService } from '~application/services/auth.service';
 import { Role } from '~domain/entities/user.entity';
+import { UserAlreadyExistsException } from '~domain/exceptions';
 
 export type RegisterParams = {
   email: string;
@@ -19,7 +20,7 @@ export class RegisterUseCase {
   async execute({ email, password, username, role = Role.USER }: RegisterParams) {
     const isExist = await this.userRepository.isExistByEmail(email);
     if (isExist) {
-      throw new Error('User already exists');
+      throw new UserAlreadyExistsException();
     }
 
     const hashedPassword = await this.authService.hashPassword(password);

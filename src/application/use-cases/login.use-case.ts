@@ -1,6 +1,7 @@
 import type { SessionRepository } from '~application/repositories/session.repository';
 import type { UserRepository } from '~application/repositories/user.repository';
 import type { AuthService } from '~application/services/auth.service';
+import { InvalidCredentialsException } from '~domain/exceptions';
 
 type ClientContext = {
   ipAddress: string;
@@ -28,12 +29,12 @@ export class LoginUseCase {
   async execute({ email, password, clientContext }: LoginUseCaseParams): Promise<LoginUseCaseResult> {
     const user = await this.userRepository.findByEmail(email);
     if (!user) {
-      throw new Error('Invalid email or password');
+      throw new InvalidCredentialsException();
     }
 
     const isPasswordValid = await this.authService.verifyPassword(password, user.password);
     if (!isPasswordValid) {
-      throw new Error('Invalid email or password');
+      throw new InvalidCredentialsException();
     }
 
     const refreshToken = await this.sessionRepository.create({

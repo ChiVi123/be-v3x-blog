@@ -2,11 +2,9 @@ import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import type { SessionRepository } from '~application/repositories/session.repository';
 import type { UserRepository } from '~application/repositories/user.repository';
 import type { AuthService } from '~application/services/auth.service';
-import {
-  LoginUseCase,
-  type LoginUseCaseParams,
-} from '~application/use-cases/login.use-case';
+import { LoginUseCase, type LoginUseCaseParams } from '~application/use-cases/login.use-case';
 import { Role, type UserEntity } from '~domain/entities/user.entity';
+import { InvalidCredentialsException } from '~domain/exceptions';
 import type { UserId } from '~domain/types/branded';
 
 describe('LoginUseCase', () => {
@@ -59,19 +57,13 @@ describe('LoginUseCase', () => {
       createRefreshTokenExpiryDate: mock(() => new Date('2026-09-01T00:00:00Z')),
     };
 
-    useCase = new LoginUseCase(
-      mockUserRepository,
-      mockSessionRepository,
-      mockAuthService,
-    );
+    useCase = new LoginUseCase(mockUserRepository, mockSessionRepository, mockAuthService);
   });
 
   it('should throw an error when user is not found by email', async () => {
     mockUserRepository.findByEmail = mock(async () => null);
 
-    expect(useCase.execute(loginParams)).rejects.toThrow(
-      'Invalid email or password',
-    );
+    expect(useCase.execute(loginParams)).rejects.toThrow(InvalidCredentialsException);
     expect(mockAuthService.verifyPassword).not.toHaveBeenCalled();
     expect(mockSessionRepository.create).not.toHaveBeenCalled();
   });
@@ -79,9 +71,7 @@ describe('LoginUseCase', () => {
   it('should throw an error when password verification fails', async () => {
     mockAuthService.verifyPassword = mock(async () => false);
 
-    expect(useCase.execute(loginParams)).rejects.toThrow(
-      'Invalid email or password',
-    );
+    expect(useCase.execute(loginParams)).rejects.toThrow(InvalidCredentialsException);
     expect(mockSessionRepository.create).not.toHaveBeenCalled();
   });
 
@@ -95,10 +85,7 @@ describe('LoginUseCase', () => {
     const result = await useCase.execute(loginParams);
 
     expect(mockUserRepository.findByEmail).toHaveBeenCalledWith('john@example.com');
-    expect(mockAuthService.verifyPassword).toHaveBeenCalledWith(
-      'plain_password',
-      'hashed_password_123',
-    );
+    expect(mockAuthService.verifyPassword).toHaveBeenCalledWith('plain_password', 'hashed_password_123');
     expect(mockSessionRepository.create).toHaveBeenCalledWith({
       userId: 'user-uuid-1' as UserId,
       ipAddress: '127.0.0.1',
