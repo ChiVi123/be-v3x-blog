@@ -135,7 +135,7 @@ describe('AuthController (e2e)', () => {
       expect(response.status).toBe(400);
     });
 
-    it('should fail with 500 when email is not registered', async () => {
+    it('should fail with 401 when email is not registered', async () => {
       const response = await fetch(`${serverUrl}/auth/login`, {
         method: 'POST',
         headers: {
@@ -147,10 +147,15 @@ describe('AuthController (e2e)', () => {
         }),
       });
 
-      expect(response.status).toBe(500);
+      expect(response.status).toBe(401);
+
+      const body = await response.json();
+      expect(body.statusCode).toBe(401);
+      expect(body.error).toBe('Unauthorized');
+      expect(body.message).toBe('Invalid email or password');
     });
 
-    it('should fail with 500 when password is incorrect', async () => {
+    it('should fail with 401 when password is incorrect', async () => {
       const response = await fetch(`${serverUrl}/auth/login`, {
         method: 'POST',
         headers: {
@@ -162,7 +167,12 @@ describe('AuthController (e2e)', () => {
         }),
       });
 
-      expect(response.status).toBe(500);
+      expect(response.status).toBe(401);
+
+      const body = await response.json();
+      expect(body.statusCode).toBe(401);
+      expect(body.error).toBe('Unauthorized');
+      expect(body.message).toBe('Invalid email or password');
     });
   });
 });

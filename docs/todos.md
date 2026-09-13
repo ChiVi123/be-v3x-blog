@@ -1,6 +1,6 @@
 ### `Auth` 23/08/2026
-- [ ] Standardize error handling: Map invalid credentials/unauthorized errors to HTTP 401 instead of HTTP 500 (in file: `src/application/use-cases/login.use-case.ts`)
-- [ ] Enable bcrypt password verification (`bcrypt.compare`) instead of plain text comparison (in file: `src/infrastructure/services/auth.service.ts`) and ensure users are seeded/created with hashed passwords
+- [x] Enable bcrypt password verification (`bcrypt.compare`) instead of plain text comparison (in file: `src/infrastructure/services/auth.service.ts`) and ensure users are seeded/created with hashed passwords (**Done 01/09/2026**)
+- [x] Standardize error handling: Map invalid credentials/unauthorized errors to HTTP 401 instead of HTTP 500 (in file: `src/application/use-cases/login.use-case.ts`) (**Done 02/09/2026**)
 - [ ] Implement Account Status Check: Check user status (active, banned, unverified) during login (in files: `src/domain/entities/user.entity.ts`, `src/infrastructure/database/drizzle/schema.ts`, `src/application/use-cases/login.use-case.ts`)
 - [ ] Implement Rate Limiting / Brute-force Protection: Protect `/auth/login` endpoint against brute-force attacks (in files: `src/presentation/app.module.ts`, `src/presentation/controllers/auth.controller.ts`)
 
