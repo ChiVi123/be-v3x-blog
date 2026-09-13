@@ -6,6 +6,7 @@ import type { Request } from 'express';
 import type { RegisterUseCase } from '~application/use-cases/auth/register.use-case';
 import type { LoginUseCase } from '~application/use-cases/login.use-case';
 import { Role } from '~domain/entities/user.entity';
+import { UserAlreadyExistsException } from '~domain/exceptions';
 import { LOGIN_USE_CASE_TOKEN, REGISTER_USE_CASE_TOKEN } from '~infrastructure/config/provider-tokens';
 import { AuthController } from '~presentation/controllers/auth.controller';
 import type { RegisterRequest } from '~presentation/dtos/auth/register.dto';
@@ -188,10 +189,10 @@ describe('AuthController', () => {
       };
 
       mockRegisterUseCase.execute = mock(async () => {
-        throw new Error('User already exists');
+        throw new UserAlreadyExistsException();
       });
 
-      expect(controller.register(body)).rejects.toThrow('User already exists');
+      expect(controller.register(body)).rejects.toThrow(UserAlreadyExistsException);
     });
   });
 });

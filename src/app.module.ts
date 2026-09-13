@@ -1,10 +1,12 @@
 import { Module } from '@nestjs/common';
+import { APP_FILTER } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
 import { AppConfigModule } from '~infrastructure/config/config.module';
 import { AppConfigService } from '~infrastructure/config/env';
 import { DatabaseModule } from '~infrastructure/database/database.module';
 import { RepositoriesModule } from '~infrastructure/repositories/repositories.module';
 import { ServicesModule } from '~infrastructure/services/services.module';
+import { GlobalExceptionFilter } from '~presentation/filters';
 import { AuthModule, HealthCheckModule, UserModule } from '~presentation/modules';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -28,6 +30,12 @@ import { AppService } from './app.service';
     UserModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_FILTER,
+      useClass: GlobalExceptionFilter,
+    },
+  ],
 })
 export class AppModule {}
