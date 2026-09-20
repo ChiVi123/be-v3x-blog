@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { plainToInstance } from 'class-transformer';
 import {
+  IsEnum,
   IsNotEmpty,
   IsOptional,
   IsPort,
@@ -64,6 +65,10 @@ export class Environment {
   @IsOptional()
   @IsMsValue()
   REFRESH_TOKEN_EXPIRY: number | ms.StringValue = REFRESH_TOKEN_EXPIRY_DEFAULT;
+
+  @IsOptional()
+  @IsEnum(['development', 'production', 'test'])
+  NODE_ENV: 'development' | 'production' | 'test' = 'development';
 }
 
 @Injectable()
