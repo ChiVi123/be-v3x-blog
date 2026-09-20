@@ -5,6 +5,7 @@ export interface SessionRepository {
   // TODO: Return SessionEntity
   create(input: SessionCreateInput): Promise<string>;
   delete(sessionId: SessionId): Promise<void>;
+  deleteByRefreshToken(refreshToken: string): Promise<void>;
   findById(sessionId: SessionId): Promise<SessionEntity | null>;
   findValidByRefreshToken(refreshToken: string): Promise<SessionFound | null>;
 }
