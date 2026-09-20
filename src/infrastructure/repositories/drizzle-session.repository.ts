@@ -1,13 +1,22 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { eq } from 'drizzle-orm';
-import type { SessionCreateInput, SessionRepository } from '~application/repositories/session.repository';
+import { and, eq, gt } from 'drizzle-orm';
+import type { SessionCreateInput, SessionFound, SessionRepository } from '~application/repositories/session.repository';
 import type { SessionEntity } from '~domain/entities/session.entity';
 import type { SessionId, UserId } from '~domain/types/branded';
 import { DRIZZLE_DB_TOKEN } from '~infrastructure/config/provider-tokens';
 import { sessions } from '~infrastructure/database/drizzle/schema';
 import type { DrizzleDB } from '~infrastructure/database/drizzle/types';
 
-const INCLUDE_TOKEN_ONLY = { refreshToken: sessions.refreshToken };
+const INCLUDE_TOKEN_ONLY = {
+  refreshToken: sessions.refreshToken,
+};
+
+const SESSION_FOUND_SELECTION = {
+  id: sessions.id,
+  userId: sessions.userId,
+  refreshToken: sessions.refreshToken,
+  expiresAt: sessions.expiresAt,
+};
 
 @Injectable()
 export class DrizzleSessionRepository implements SessionRepository {
@@ -44,16 +53,21 @@ export class DrizzleSessionRepository implements SessionRepository {
     };
   }
 
-  async findValidByRefreshToken(refreshToken: string): Promise<string | null> {
+  async findValidByRefreshToken(refreshToken: string): Promise<SessionFound | null> {
     const [sessionEntity] = await this.db
-      .select(INCLUDE_TOKEN_ONLY)
+      .select(SESSION_FOUND_SELECTION)
       .from(sessions)
-      .where(eq(sessions.refreshToken, refreshToken))
+      .where(and(eq(sessions.refreshToken, refreshToken), gt(sessions.expiresAt, new Date())))
       .limit(1);
 
     if (!sessionEntity) {
       return null;
     }
-    return sessionEntity.refreshToken;
+    return {
+      id: sessionEntity.id as SessionId,
+      userId: sessionEntity.userId as UserId,
+      refreshToken: sessionEntity.refreshToken,
+      expiresAt: sessionEntity.expiresAt,
+    };
   }
 }

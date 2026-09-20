@@ -6,10 +6,12 @@ export interface SessionRepository {
   create(input: SessionCreateInput): Promise<string>;
   delete(sessionId: SessionId): Promise<void>;
   findById(sessionId: SessionId): Promise<SessionEntity | null>;
-  findValidByRefreshToken(refreshToken: string): Promise<string | null>;
+  findValidByRefreshToken(refreshToken: string): Promise<SessionFound | null>;
 }
 
 export type SessionCreateInput = Pick<
   SessionEntity,
   'userId' | 'ipAddress' | 'userAgent' | 'refreshToken' | 'expiresAt'
 >;
+
+export type SessionFound = Required<Pick<SessionEntity, 'id' | 'refreshToken' | 'userId' | 'expiresAt'>>;
