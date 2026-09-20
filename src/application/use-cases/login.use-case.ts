@@ -1,12 +1,8 @@
 import type { SessionRepository } from '~application/repositories/session.repository';
 import type { UserRepository } from '~application/repositories/user.repository';
 import type { AuthService } from '~application/services/auth.service';
+import type { ClientContext } from '~application/types/use-case.type';
 import { InvalidCredentialsException } from '~domain/exceptions';
-
-type ClientContext = {
-  ipAddress: string;
-  userAgent: string;
-};
 
 export type LoginUseCaseParams = {
   email: string;
