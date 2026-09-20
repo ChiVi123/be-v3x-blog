@@ -1,12 +1,13 @@
 import { Body, Controller, HttpCode, HttpStatus, Inject, Post, Req, Res } from '@nestjs/common';
 import type { CookieOptions, Request, Response } from 'express';
 import type { ClientContext } from '~application/types/use-case.type';
-import type { RefreshUseCase, RegisterUseCase } from '~application/use-cases/auth';
+import type { LogoutUseCase, RefreshUseCase, RegisterUseCase } from '~application/use-cases/auth';
 import type { LoginUseCase } from '~application/use-cases/login.use-case';
 import { UnauthorizedException } from '~domain/exceptions';
 import { AppConfigService } from '~infrastructure/config/env';
 import {
   LOGIN_USE_CASE_TOKEN,
+  LOGOUT_USE_CASE_TOKEN,
   REFRESH_USE_CASE_TOKEN,
   REGISTER_USE_CASE_TOKEN,
 } from '~infrastructure/config/provider-tokens';
@@ -29,6 +30,8 @@ export class AuthController {
     private readonly registerUseCase: RegisterUseCase,
     @Inject(REFRESH_USE_CASE_TOKEN)
     private readonly refreshUseCase: RefreshUseCase,
+    @Inject(LOGOUT_USE_CASE_TOKEN)
+    private readonly logoutUseCase: LogoutUseCase,
     @Inject(AppConfigService) private readonly configService: AppConfigService,
   ) {}
 
@@ -79,6 +82,28 @@ export class AuthController {
 
     this.setRefreshTokenCookie(res, newRefreshToken, refreshTokenExpiryDate);
     return { accessToken };
+  }
+
+  // TODO: Add JWT guard to restrict to authenticated sessions only.
+  @Post('logout')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response): Promise<void> {
+    const refreshToken = req.cookies?.[REFRESH_TOKEN_COOKIE_NAME];
+
+    if (refreshToken) {
+      try {
+        await this.logoutUseCase.execute(refreshToken);
+      } finally {
+        this.clearRefreshTokenCookie(res);
+      }
+      return;
+    }
+
+    this.clearRefreshTokenCookie(res);
+  }
+
+  private clearRefreshTokenCookie(res: Response): void {
+    res.clearCookie(REFRESH_TOKEN_COOKIE_NAME, this.getRefreshTokenCookieOptions());
   }
 
   private getRefreshTokenCookieOptions(expires?: Date): CookieOptions {

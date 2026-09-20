@@ -2,12 +2,13 @@ import { Module } from '@nestjs/common';
 import type { SessionRepository } from '~application/repositories/session.repository';
 import type { UserRepository } from '~application/repositories/user.repository';
 import type { AuthService } from '~application/services/auth.service';
-import { RefreshUseCase } from '~application/use-cases/auth';
+import { LogoutUseCase, RefreshUseCase } from '~application/use-cases/auth';
 import { RegisterUseCase } from '~application/use-cases/auth/register.use-case';
 import { LoginUseCase } from '~application/use-cases/login.use-case';
 import {
   AUTH_SERVICE_TOKEN,
   LOGIN_USE_CASE_TOKEN,
+  LOGOUT_USE_CASE_TOKEN,
   REFRESH_USE_CASE_TOKEN,
   REGISTER_USE_CASE_TOKEN,
   SESSION_REPOSITORY_TOKEN,
@@ -38,6 +39,13 @@ import { AuthController } from '~presentation/controllers/auth.controller';
         return new RegisterUseCase(userRepo, authService);
       },
       inject: [USER_REPOSITORY_TOKEN, AUTH_SERVICE_TOKEN],
+    },
+    {
+      provide: LOGOUT_USE_CASE_TOKEN,
+      useFactory: (sessionRepo: SessionRepository) => {
+        return new LogoutUseCase(sessionRepo);
+      },
+      inject: [SESSION_REPOSITORY_TOKEN],
     },
   ],
 })

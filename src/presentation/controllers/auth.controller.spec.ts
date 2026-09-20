@@ -4,13 +4,14 @@ import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import { Test, type TestingModule } from '@nestjs/testing';
 import type { Request, Response } from 'express';
 import type { ClientContext } from '~application/types/use-case.type';
-import type { RefreshUseCase, RegisterUseCase } from '~application/use-cases/auth';
+import type { LogoutUseCase, RefreshUseCase, RegisterUseCase } from '~application/use-cases/auth';
 import type { LoginUseCase } from '~application/use-cases/login.use-case';
 import { Role } from '~domain/entities/user.entity';
 import { InvalidCredentialsException, UnauthorizedException, UserAlreadyExistsException } from '~domain/exceptions';
 import { AppConfigService } from '~infrastructure/config/env';
 import {
   LOGIN_USE_CASE_TOKEN,
+  LOGOUT_USE_CASE_TOKEN,
   REFRESH_USE_CASE_TOKEN,
   REGISTER_USE_CASE_TOKEN,
 } from '~infrastructure/config/provider-tokens';
@@ -23,6 +24,7 @@ describe('AuthController', () => {
   let mockLoginUseCase: { execute: ReturnType<typeof mock> };
   let mockRegisterUseCase: { execute: ReturnType<typeof mock> };
   let mockRefreshUseCase: { execute: ReturnType<typeof mock> };
+  let mockLogoutUseCase: { execute: ReturnType<typeof mock> };
   let mockConfigService: { get: ReturnType<typeof mock> };
 
   const mockExpiryDate = new Date('2026-09-27T00:00:00Z');
@@ -47,6 +49,10 @@ describe('AuthController', () => {
       })),
     };
 
+    mockLogoutUseCase = {
+      execute: mock(async () => undefined),
+    };
+
     mockConfigService = {
       get: mock((key: string) => {
         if (key === 'NODE_ENV') return 'development';
@@ -68,6 +74,10 @@ describe('AuthController', () => {
         {
           provide: REFRESH_USE_CASE_TOKEN,
           useValue: mockRefreshUseCase as unknown as RefreshUseCase,
+        },
+        {
+          provide: LOGOUT_USE_CASE_TOKEN,
+          useValue: mockLogoutUseCase as unknown as LogoutUseCase,
         },
         {
           provide: AppConfigService,
@@ -265,6 +275,96 @@ describe('AuthController', () => {
       });
 
       expect(controller.refresh(req, res, clientContext)).rejects.toThrow(InvalidCredentialsException);
+    });
+  });
+
+  describe('logout', () => {
+    it('should clear cookie without calling logoutUseCase when no cookie present', async () => {
+      const req = {
+        cookies: {},
+      } as unknown as Request;
+      const res = {
+        clearCookie: mock(),
+      } as unknown as Response;
+
+      await controller.logout(req, res);
+
+      expect(mockLogoutUseCase.execute).not.toHaveBeenCalled();
+      expect(res.clearCookie).toHaveBeenCalledWith('refresh-token', {
+        httpOnly: true,
+        secure: false,
+        sameSite: 'strict',
+        path: '/',
+      });
+    });
+
+    it('should call logoutUseCase with refresh token and clear cookie when cookie is present', async () => {
+      const req = {
+        cookies: {
+          'refresh-token': 'valid-refresh-token',
+        },
+      } as unknown as Request;
+      const res = {
+        clearCookie: mock(),
+      } as unknown as Response;
+
+      await controller.logout(req, res);
+
+      expect(mockLogoutUseCase.execute).toHaveBeenCalledWith('valid-refresh-token');
+      expect(res.clearCookie).toHaveBeenCalledWith('refresh-token', {
+        httpOnly: true,
+        secure: false,
+        sameSite: 'strict',
+        path: '/',
+      });
+    });
+
+    it('should still clear cookie even when logoutUseCase throws (try/finally)', async () => {
+      const req = {
+        cookies: {
+          'refresh-token': 'valid-refresh-token',
+        },
+      } as unknown as Request;
+      const res = {
+        clearCookie: mock(),
+      } as unknown as Response;
+
+      mockLogoutUseCase.execute = mock(async () => {
+        throw new Error('Database connection failed');
+      });
+
+      await expect(controller.logout(req, res)).rejects.toThrow('Database connection failed');
+      expect(res.clearCookie).toHaveBeenCalledWith('refresh-token', {
+        httpOnly: true,
+        secure: false,
+        sameSite: 'strict',
+        path: '/',
+      });
+    });
+
+    it('should use secure cookie when NODE_ENV is production', async () => {
+      mockConfigService.get = mock((key: string) => {
+        if (key === 'NODE_ENV') return 'production';
+        return undefined;
+      });
+
+      const req = {
+        cookies: {
+          'refresh-token': 'valid-refresh-token',
+        },
+      } as unknown as Request;
+      const res = {
+        clearCookie: mock(),
+      } as unknown as Response;
+
+      await controller.logout(req, res);
+
+      expect(res.clearCookie).toHaveBeenCalledWith('refresh-token', {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'strict',
+        path: '/',
+      });
     });
   });
 });
