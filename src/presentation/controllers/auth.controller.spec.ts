@@ -2,12 +2,18 @@ import 'reflect-metadata';
 
 import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import { Test, type TestingModule } from '@nestjs/testing';
-import type { Request } from 'express';
-import type { RegisterUseCase } from '~application/use-cases/auth/register.use-case';
+import type { Request, Response } from 'express';
+import type { ClientContext } from '~application/types/use-case.type';
+import type { RefreshUseCase, RegisterUseCase } from '~application/use-cases/auth';
 import type { LoginUseCase } from '~application/use-cases/login.use-case';
 import { Role } from '~domain/entities/user.entity';
-import { UserAlreadyExistsException } from '~domain/exceptions';
-import { LOGIN_USE_CASE_TOKEN, REGISTER_USE_CASE_TOKEN } from '~infrastructure/config/provider-tokens';
+import { InvalidCredentialsException, UnauthorizedException, UserAlreadyExistsException } from '~domain/exceptions';
+import { AppConfigService } from '~infrastructure/config/env';
+import {
+  LOGIN_USE_CASE_TOKEN,
+  REFRESH_USE_CASE_TOKEN,
+  REGISTER_USE_CASE_TOKEN,
+} from '~infrastructure/config/provider-tokens';
 import { AuthController } from '~presentation/controllers/auth.controller';
 import type { RegisterRequest } from '~presentation/dtos/auth/register.dto';
 import type { LoginRequest } from '~presentation/dtos/login.dto';
@@ -16,6 +22,10 @@ describe('AuthController', () => {
   let controller: AuthController;
   let mockLoginUseCase: { execute: ReturnType<typeof mock> };
   let mockRegisterUseCase: { execute: ReturnType<typeof mock> };
+  let mockRefreshUseCase: { execute: ReturnType<typeof mock> };
+  let mockConfigService: { get: ReturnType<typeof mock> };
+
+  const mockExpiryDate = new Date('2026-09-27T00:00:00Z');
 
   beforeEach(async () => {
     mockLoginUseCase = {
@@ -29,6 +39,21 @@ describe('AuthController', () => {
       execute: mock(async () => undefined),
     };
 
+    mockRefreshUseCase = {
+      execute: mock(async () => ({
+        accessToken: 'mock-new-access-token',
+        refreshToken: 'mock-new-refresh-token',
+        refreshTokenExpiryDate: mockExpiryDate,
+      })),
+    };
+
+    mockConfigService = {
+      get: mock((key: string) => {
+        if (key === 'NODE_ENV') return 'development';
+        return undefined;
+      }),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
       providers: [
@@ -40,6 +65,14 @@ describe('AuthController', () => {
           provide: REGISTER_USE_CASE_TOKEN,
           useValue: mockRegisterUseCase as unknown as RegisterUseCase,
         },
+        {
+          provide: REFRESH_USE_CASE_TOKEN,
+          useValue: mockRefreshUseCase as unknown as RefreshUseCase,
+        },
+        {
+          provide: AppConfigService,
+          useValue: mockConfigService as unknown as AppConfigService,
+        },
       ],
     }).compile();
 
@@ -47,20 +80,17 @@ describe('AuthController', () => {
   });
 
   describe('login', () => {
-    it('should extract ipAddress from req.ip and userAgent from headers and pass to loginUseCase', async () => {
+    it('should pass body and clientContext to loginUseCase and return result', async () => {
       const body: LoginRequest = {
         email: 'test@example.com',
         password: 'password123',
       };
-      const req = {
-        ip: '192.168.1.100',
-        headers: {
-          'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-          'x-forwarded-for': '203.0.113.195',
-        },
-      } as unknown as Request;
+      const clientContext: ClientContext = {
+        ipAddress: '192.168.1.100',
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+      };
 
-      const result = await controller.login(body, req);
+      const result = await controller.login(body, clientContext);
 
       expect(mockLoginUseCase.execute).toHaveBeenCalledWith({
         email: 'test@example.com',
@@ -76,71 +106,21 @@ describe('AuthController', () => {
       });
     });
 
-    it('should fallback to "0.0.0.0" when req.ip is undefined', async () => {
+    it('should propagate errors when loginUseCase throws', async () => {
       const body: LoginRequest = {
         email: 'test@example.com',
-        password: 'password123',
+        password: 'wrongpassword',
       };
-      const req = {
-        ip: undefined,
-        headers: {
-          'user-agent': 'PostmanRuntime/7.29.0',
-        },
-      } as unknown as Request;
-
-      await controller.login(body, req);
-
-      expect(mockLoginUseCase.execute).toHaveBeenCalledWith({
-        email: 'test@example.com',
-        password: 'password123',
-        clientContext: {
-          ipAddress: '0.0.0.0',
-          userAgent: 'PostmanRuntime/7.29.0',
-        },
-      });
-    });
-
-    it('should fallback to "Unknown" when user-agent header is missing', async () => {
-      const body: LoginRequest = {
-        email: 'test@example.com',
-        password: 'password123',
+      const clientContext: ClientContext = {
+        ipAddress: '0.0.0.0',
+        userAgent: 'Unknown',
       };
-      const req = {
-        ip: '10.0.0.1',
-        headers: {},
-      } as unknown as Request;
 
-      await controller.login(body, req);
-
-      expect(mockLoginUseCase.execute).toHaveBeenCalledWith({
-        email: 'test@example.com',
-        password: 'password123',
-        clientContext: {
-          ipAddress: '10.0.0.1',
-          userAgent: 'Unknown',
-        },
+      mockLoginUseCase.execute = mock(async () => {
+        throw new InvalidCredentialsException();
       });
-    });
 
-    it('should fallback to default values when both ip and user-agent are missing', async () => {
-      const body: LoginRequest = {
-        email: 'test@example.com',
-        password: 'password123',
-      };
-      const req = {
-        headers: {},
-      } as unknown as Request;
-
-      await controller.login(body, req);
-
-      expect(mockLoginUseCase.execute).toHaveBeenCalledWith({
-        email: 'test@example.com',
-        password: 'password123',
-        clientContext: {
-          ipAddress: '0.0.0.0',
-          userAgent: 'Unknown',
-        },
-      });
+      expect(controller.login(body, clientContext)).rejects.toThrow(InvalidCredentialsException);
     });
   });
 
@@ -193,6 +173,98 @@ describe('AuthController', () => {
       });
 
       expect(controller.register(body)).rejects.toThrow(UserAlreadyExistsException);
+    });
+  });
+
+  describe('refresh', () => {
+    const clientContext: ClientContext = {
+      ipAddress: '192.168.1.100',
+      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+    };
+
+    it('should throw UnauthorizedException when refresh-token cookie is missing', async () => {
+      const req = {
+        cookies: {},
+      } as unknown as Request;
+      const res = {
+        cookie: mock(),
+      } as unknown as Response;
+
+      expect(controller.refresh(req, res, clientContext)).rejects.toThrow(UnauthorizedException);
+      expect(mockRefreshUseCase.execute).not.toHaveBeenCalled();
+    });
+
+    it('should refresh tokens, set cookie with path /, and return new access token', async () => {
+      const req = {
+        cookies: {
+          'refresh-token': 'valid-refresh-token',
+        },
+      } as unknown as Request;
+      const res = {
+        cookie: mock(),
+      } as unknown as Response;
+
+      const result = await controller.refresh(req, res, clientContext);
+
+      expect(mockRefreshUseCase.execute).toHaveBeenCalledWith({
+        refreshToken: 'valid-refresh-token',
+        clientContext,
+      });
+
+      expect(res.cookie).toHaveBeenCalledWith('refresh-token', 'mock-new-refresh-token', {
+        httpOnly: true,
+        secure: false,
+        sameSite: 'strict',
+        path: '/',
+        expires: mockExpiryDate,
+      });
+
+      expect(result).toEqual({
+        accessToken: 'mock-new-access-token',
+      });
+    });
+
+    it('should set secure cookie when NODE_ENV is production', async () => {
+      mockConfigService.get = mock((key: string) => {
+        if (key === 'NODE_ENV') return 'production';
+        return undefined;
+      });
+
+      const req = {
+        cookies: {
+          'refresh-token': 'valid-refresh-token',
+        },
+      } as unknown as Request;
+      const res = {
+        cookie: mock(),
+      } as unknown as Response;
+
+      await controller.refresh(req, res, clientContext);
+
+      expect(res.cookie).toHaveBeenCalledWith('refresh-token', 'mock-new-refresh-token', {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'strict',
+        path: '/',
+        expires: mockExpiryDate,
+      });
+    });
+
+    it('should propagate errors when refreshUseCase throws', async () => {
+      const req = {
+        cookies: {
+          'refresh-token': 'invalid-refresh-token',
+        },
+      } as unknown as Request;
+      const res = {
+        cookie: mock(),
+      } as unknown as Response;
+
+      mockRefreshUseCase.execute = mock(async () => {
+        throw new InvalidCredentialsException();
+      });
+
+      expect(controller.refresh(req, res, clientContext)).rejects.toThrow(InvalidCredentialsException);
     });
   });
 });
