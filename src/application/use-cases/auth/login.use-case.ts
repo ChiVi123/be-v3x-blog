@@ -13,6 +13,7 @@ export type LoginUseCaseParams = {
 export type LoginUseCaseResult = {
   accessToken: string;
   refreshToken: string;
+  refreshTokenExpiryDate: Date;
 };
 
 export class LoginUseCase {
@@ -33,12 +34,13 @@ export class LoginUseCase {
       throw new InvalidCredentialsException();
     }
 
+    const refreshTokenExpiryDate = this.authService.createRefreshTokenExpiryDate();
     const refreshToken = await this.sessionRepository.create({
       userId: user.id,
       ipAddress: clientContext.ipAddress,
       userAgent: clientContext.userAgent,
       refreshToken: this.authService.generateRefreshToken(),
-      expiresAt: this.authService.createRefreshTokenExpiryDate(),
+      expiresAt: refreshTokenExpiryDate,
     });
     return {
       accessToken: this.authService.generateAccessToken({
@@ -47,6 +49,7 @@ export class LoginUseCase {
         role: user.role,
       }),
       refreshToken,
+      refreshTokenExpiryDate,
     };
   }
 }

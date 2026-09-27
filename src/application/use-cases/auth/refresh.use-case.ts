@@ -33,20 +33,24 @@ export class RefreshUseCase {
     }
 
     const newRefreshToken = this.authService.generateRefreshToken();
+    const refreshTokenExpiryDate = this.authService.createRefreshTokenExpiryDate();
+
+    const didRotate = await this.sessionRepository.rotateRefreshToken({
+      sessionId: session.id,
+      currentRefreshToken: refreshToken,
+      newRefreshToken,
+      ipAddress: clientContext.ipAddress,
+      userAgent: clientContext.userAgent,
+      expiresAt: refreshTokenExpiryDate,
+    });
+    if (!didRotate) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
     const newAccessToken = this.authService.generateAccessToken({
       id: user.id,
       email: user.email,
       role: user.role,
-    });
-    const refreshTokenExpiryDate = this.authService.createRefreshTokenExpiryDate();
-
-    await this.sessionRepository.delete(session.id);
-    await this.sessionRepository.create({
-      userId: user.id,
-      ipAddress: clientContext.ipAddress,
-      userAgent: clientContext.userAgent,
-      refreshToken: newRefreshToken,
-      expiresAt: refreshTokenExpiryDate,
     });
 
     return {
