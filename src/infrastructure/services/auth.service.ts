@@ -30,6 +30,12 @@ export class AuthServiceImpl implements AuthService {
     });
   }
 
+  async verifyAccessToken(token: string): Promise<AccessTokenPayload> {
+    return this.jwt.verifyAsync<AccessTokenPayload>(token, {
+      secret: this.configService.get('JWT_SECRET'),
+    });
+  }
+
   generateRefreshToken(): string {
     return crypto.randomUUID();
   }
