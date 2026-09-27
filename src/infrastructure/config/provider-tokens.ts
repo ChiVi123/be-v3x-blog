@@ -13,4 +13,5 @@ export const LOGIN_USE_CASE_TOKEN = Symbol('LOGIN_USE_CASE');
 export const REFRESH_USE_CASE_TOKEN = Symbol('REFRESH_USE_CASE');
 export const REGISTER_USE_CASE_TOKEN = Symbol('REGISTER_USE_CASE');
 export const LOGOUT_USE_CASE_TOKEN = Symbol('LOGOUT_USE_CASE');
+export const GET_ME_USE_CASE_TOKEN = Symbol('GET_ME_USE_CASE');
 export const HEALTH_CHECK_USE_CASE_TOKEN = Symbol('HEALTH_CHECK_USE_CASE');
