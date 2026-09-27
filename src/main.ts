@@ -1,8 +1,8 @@
-import { Logger, ValidationPipe } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import cookieParser from 'cookie-parser';
 import { AppConfigService } from '~infrastructure/config/env';
 import { AppModule } from './app.module';
+import { configureApplication } from './app.setup';
 
 const logger = new Logger('Bootstrap');
 
@@ -11,8 +11,7 @@ async function bootstrap() {
   const config = app.get(AppConfigService);
   const port = config.get('PORT');
 
-  app.use(cookieParser());
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
+  configureApplication(app, config);
   await app.listen(port);
 
   logger.log(`Application is running on: http://localhost:${port}`);

@@ -6,6 +6,7 @@ import {
   IsNotEmpty,
   IsOptional,
   IsPort,
+  IsString,
   IsUrl,
   registerDecorator,
   type ValidationArguments,
@@ -69,6 +70,10 @@ export class Environment {
   @IsOptional()
   @IsEnum(['development', 'production', 'test'])
   NODE_ENV: 'development' | 'production' | 'test' = 'development';
+
+  @IsOptional()
+  @IsString()
+  CORS_ORIGINS?: string;
 }
 
 @Injectable()

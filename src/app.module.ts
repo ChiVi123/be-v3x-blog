@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { APP_FILTER } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { AppConfigModule } from '~infrastructure/config/config.module';
 import { AppConfigService } from '~infrastructure/config/env';
 import { DatabaseModule } from '~infrastructure/database/database.module';
@@ -22,6 +23,12 @@ import { AppService } from './app.service';
       }),
       inject: [AppConfigService],
     }),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60_000,
+        limit: 60,
+      },
+    ]),
     DatabaseModule,
     RepositoriesModule,
     ServicesModule,
