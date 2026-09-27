@@ -2,22 +2,27 @@ import 'reflect-metadata';
 
 import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import { Test, type TestingModule } from '@nestjs/testing';
+import { ThrottlerModule } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import type { ClientContext } from '~application/types/use-case.type';
-import type { LogoutUseCase, RefreshUseCase, RegisterUseCase } from '~application/use-cases/auth';
-import type { LoginUseCase } from '~application/use-cases/login.use-case';
+import type { GetMeUseCase, LogoutUseCase, RefreshUseCase, RegisterUseCase } from '~application/use-cases/auth';
+import type { LoginUseCase } from '~application/use-cases/auth/login.use-case';
 import { Role } from '~domain/entities/user.entity';
 import { InvalidCredentialsException, UnauthorizedException, UserAlreadyExistsException } from '~domain/exceptions';
+import type { UserId } from '~domain/types/branded';
 import { AppConfigService } from '~infrastructure/config/env';
 import {
+  AUTH_SERVICE_TOKEN,
+  GET_ME_USE_CASE_TOKEN,
   LOGIN_USE_CASE_TOKEN,
   LOGOUT_USE_CASE_TOKEN,
   REFRESH_USE_CASE_TOKEN,
   REGISTER_USE_CASE_TOKEN,
 } from '~infrastructure/config/provider-tokens';
 import { AuthController } from '~presentation/controllers/auth.controller';
-import type { RegisterRequest } from '~presentation/dtos/auth/register.dto';
+import type { PublicRegisterRequest } from '~presentation/dtos/auth/register.dto';
 import type { LoginRequest } from '~presentation/dtos/login.dto';
+import { JwtAuthGuard } from '~presentation/guards';
 
 describe('AuthController', () => {
   let controller: AuthController;
@@ -25,6 +30,7 @@ describe('AuthController', () => {
   let mockRegisterUseCase: { execute: ReturnType<typeof mock> };
   let mockRefreshUseCase: { execute: ReturnType<typeof mock> };
   let mockLogoutUseCase: { execute: ReturnType<typeof mock> };
+  let mockGetMeUseCase: { execute: ReturnType<typeof mock> };
   let mockConfigService: { get: ReturnType<typeof mock> };
 
   const mockExpiryDate = new Date('2026-09-27T00:00:00Z');
@@ -34,11 +40,16 @@ describe('AuthController', () => {
       execute: mock(async () => ({
         accessToken: 'mock-access-token',
         refreshToken: 'mock-refresh-token',
+        refreshTokenExpiryDate: mockExpiryDate,
       })),
     };
 
     mockRegisterUseCase = {
-      execute: mock(async () => undefined),
+      execute: mock(async () => ({
+        id: 'user-1' as UserId,
+        email: 'test@example.com',
+        username: 'testuser',
+      })),
     };
 
     mockRefreshUseCase = {
@@ -53,6 +64,18 @@ describe('AuthController', () => {
       execute: mock(async () => undefined),
     };
 
+    mockGetMeUseCase = {
+      execute: mock(async () => ({
+        id: 'user-1' as UserId,
+        username: 'testuser',
+        email: 'test@example.com',
+        role: Role.USER,
+        avatarId: null,
+        createdAt: mockExpiryDate,
+        updatedAt: mockExpiryDate,
+      })),
+    };
+
     mockConfigService = {
       get: mock((key: string) => {
         if (key === 'NODE_ENV') return 'development';
@@ -61,6 +84,14 @@ describe('AuthController', () => {
     };
 
     const module: TestingModule = await Test.createTestingModule({
+      imports: [
+        ThrottlerModule.forRoot([
+          {
+            ttl: 60_000,
+            limit: 60,
+          },
+        ]),
+      ],
       controllers: [AuthController],
       providers: [
         {
@@ -80,17 +111,34 @@ describe('AuthController', () => {
           useValue: mockLogoutUseCase as unknown as LogoutUseCase,
         },
         {
+          provide: GET_ME_USE_CASE_TOKEN,
+          useValue: mockGetMeUseCase as unknown as GetMeUseCase,
+        },
+        {
+          provide: AUTH_SERVICE_TOKEN,
+          useValue: {
+            verifyAccessToken: mock(async () => ({
+              id: 'user-1' as UserId,
+              email: 'test@example.com',
+              role: Role.USER,
+            })),
+          },
+        },
+        {
           provide: AppConfigService,
           useValue: mockConfigService as unknown as AppConfigService,
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(JwtAuthGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<AuthController>(AuthController);
   });
 
   describe('login', () => {
-    it('should pass body and clientContext to loginUseCase and return result', async () => {
+    it('should pass body and clientContext to loginUseCase, set a cookie, and return access token and expiry date', async () => {
       const body: LoginRequest = {
         email: 'test@example.com',
         password: 'password123',
@@ -100,7 +148,11 @@ describe('AuthController', () => {
         userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
       };
 
-      const result = await controller.login(body, clientContext);
+      const res = {
+        cookie: mock(),
+      } as unknown as Response;
+
+      const result = await controller.login(body, res, clientContext);
 
       expect(mockLoginUseCase.execute).toHaveBeenCalledWith({
         email: 'test@example.com',
@@ -112,7 +164,14 @@ describe('AuthController', () => {
       });
       expect(result).toEqual({
         accessToken: 'mock-access-token',
-        refreshToken: 'mock-refresh-token',
+        refreshTokenExpiryDate: mockExpiryDate,
+      });
+      expect(res.cookie).toHaveBeenCalledWith('refresh-token', 'mock-refresh-token', {
+        httpOnly: true,
+        secure: false,
+        sameSite: 'strict',
+        path: '/',
+        expires: mockExpiryDate,
       });
     });
 
@@ -130,17 +189,20 @@ describe('AuthController', () => {
         throw new InvalidCredentialsException();
       });
 
-      expect(controller.login(body, clientContext)).rejects.toThrow(InvalidCredentialsException);
+      const res = {
+        cookie: mock(),
+      } as unknown as Response;
+
+      await expect(controller.login(body, res, clientContext)).rejects.toThrow(InvalidCredentialsException);
     });
   });
 
   describe('register', () => {
-    it('should pass register parameters with role to registerUseCase and return the result', async () => {
-      const body: RegisterRequest = {
+    it('should assign USER role and return registered user summary', async () => {
+      const body: PublicRegisterRequest = {
         email: 'test@example.com',
         password: 'password123',
         username: 'testuser',
-        role: Role.ADMIN,
       };
 
       const result = await controller.register(body);
@@ -149,30 +211,17 @@ describe('AuthController', () => {
         email: 'test@example.com',
         password: 'password123',
         username: 'testuser',
-        role: Role.ADMIN,
+        role: Role.USER,
       });
-      expect(result).toBeUndefined();
-    });
-
-    it('should pass register parameters without optional role to registerUseCase', async () => {
-      const body: RegisterRequest = {
+      expect(result).toEqual({
+        id: 'user-1' as UserId,
         email: 'test@example.com',
-        password: 'password123',
         username: 'testuser',
-      };
-
-      await controller.register(body);
-
-      expect(mockRegisterUseCase.execute).toHaveBeenCalledWith({
-        email: 'test@example.com',
-        password: 'password123',
-        username: 'testuser',
-        role: undefined,
       });
     });
 
     it('should propagate errors when registerUseCase throws', async () => {
-      const body: RegisterRequest = {
+      const body: PublicRegisterRequest = {
         email: 'test@example.com',
         password: 'password123',
         username: 'testuser',
@@ -231,6 +280,7 @@ describe('AuthController', () => {
 
       expect(result).toEqual({
         accessToken: 'mock-new-access-token',
+        refreshTokenExpiryDate: mockExpiryDate,
       });
     });
 
@@ -275,6 +325,31 @@ describe('AuthController', () => {
       });
 
       expect(controller.refresh(req, res, clientContext)).rejects.toThrow(InvalidCredentialsException);
+    });
+  });
+
+  describe('me', () => {
+    it('should return authenticated user profile', async () => {
+      const result = await controller.me('user-1' as UserId);
+
+      expect(mockGetMeUseCase.execute).toHaveBeenCalledWith('user-1' as UserId);
+      expect(result).toEqual({
+        id: 'user-1' as UserId,
+        username: 'testuser',
+        email: 'test@example.com',
+        role: Role.USER,
+        avatarId: null,
+        createdAt: mockExpiryDate,
+        updatedAt: mockExpiryDate,
+      });
+    });
+
+    it('should propagate errors when getMeUseCase throws', async () => {
+      mockGetMeUseCase.execute = mock(async () => {
+        throw new UnauthorizedException('User not found');
+      });
+
+      expect(controller.me('user-1' as UserId)).rejects.toThrow(UnauthorizedException);
     });
   });
 

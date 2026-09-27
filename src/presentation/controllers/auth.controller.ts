@@ -1,23 +1,30 @@
-import { Body, Controller, HttpCode, HttpStatus, Inject, Post, Req, Res } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Inject, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import type { CookieOptions, Request, Response } from 'express';
 import type { ClientContext } from '~application/types/use-case.type';
-import type { LogoutUseCase, RefreshUseCase, RegisterUseCase } from '~application/use-cases/auth';
-import type { LoginUseCase } from '~application/use-cases/login.use-case';
+import type { GetMeUseCase, LogoutUseCase, RefreshUseCase, RegisterUseCase } from '~application/use-cases/auth';
+import type { LoginUseCase } from '~application/use-cases/auth/login.use-case';
+import { Role } from '~domain/entities/user.entity';
 import { UnauthorizedException } from '~domain/exceptions';
+import type { UserId } from '~domain/types/branded';
 import { AppConfigService } from '~infrastructure/config/env';
 import {
+  GET_ME_USE_CASE_TOKEN,
   LOGIN_USE_CASE_TOKEN,
   LOGOUT_USE_CASE_TOKEN,
   REFRESH_USE_CASE_TOKEN,
   REGISTER_USE_CASE_TOKEN,
 } from '~infrastructure/config/provider-tokens';
-import { ClientInfo } from '~presentation/decorators';
+import { ClientInfo, CurrentUser } from '~presentation/decorators';
 // biome-ignore lint/style/useImportType: DTO class is required for NestJS ValidationPipe metadata reflection
-import { RegisterRequest } from '~presentation/dtos/auth/register.dto';
+import { PublicRegisterRequest } from '~presentation/dtos/auth/register.dto';
 // biome-ignore lint/style/useImportType: DTO class is required for NestJS ValidationPipe metadata reflection
 import { LoginRequest } from '~presentation/dtos/login.dto';
+import { JwtAuthGuard } from '~presentation/guards';
 
 const REFRESH_TOKEN_COOKIE_NAME = 'refresh-token';
+const ONE_MINUTE_MS = 60_000;
+const ONE_HOUR_MS = 60 * ONE_MINUTE_MS;
 
 @Controller('auth')
 export class AuthController {
@@ -32,34 +39,48 @@ export class AuthController {
     private readonly refreshUseCase: RefreshUseCase,
     @Inject(LOGOUT_USE_CASE_TOKEN)
     private readonly logoutUseCase: LogoutUseCase,
+    @Inject(GET_ME_USE_CASE_TOKEN)
+    private readonly getMeUseCase: GetMeUseCase,
     @Inject(AppConfigService) private readonly configService: AppConfigService,
   ) {}
 
-  // TODO: Set refresh token cookie and access token on login
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  async login(@Body() body: LoginRequest, @ClientInfo() clientContext: ClientContext) {
-    return this.loginUseCase.execute({
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 10, ttl: ONE_MINUTE_MS } })
+  async login(
+    @Body() body: LoginRequest,
+    @Res({ passthrough: true }) res: Response,
+    @ClientInfo() clientContext: ClientContext,
+  ) {
+    const { refreshToken, refreshTokenExpiryDate, accessToken } = await this.loginUseCase.execute({
       email: body.email,
       password: body.password,
       clientContext,
     });
+
+    this.setRefreshTokenCookie(res, refreshToken, refreshTokenExpiryDate);
+
+    return { accessToken, refreshTokenExpiryDate };
   }
 
-  // TODO: The route is public, set role is User by default
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
-  async register(@Body() body: RegisterRequest) {
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: ONE_HOUR_MS } })
+  async register(@Body() body: PublicRegisterRequest) {
     return this.registerUseCase.execute({
       email: body.email,
       password: body.password,
       username: body.username,
-      role: body.role,
+      role: Role.USER,
     });
   }
 
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 30, ttl: ONE_MINUTE_MS } })
   async refresh(
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
@@ -81,25 +102,32 @@ export class AuthController {
     });
 
     this.setRefreshTokenCookie(res, newRefreshToken, refreshTokenExpiryDate);
-    return { accessToken };
+    return { accessToken, refreshTokenExpiryDate };
   }
 
-  // TODO: Add JWT guard to restrict to authenticated sessions only.
+  @Get('me')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  async me(@CurrentUser('id') userId: UserId) {
+    return this.getMeUseCase.execute(userId);
+  }
+
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(JwtAuthGuard)
   async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response): Promise<void> {
     const refreshToken = req.cookies?.[REFRESH_TOKEN_COOKIE_NAME];
 
-    if (refreshToken) {
-      try {
-        await this.logoutUseCase.execute(refreshToken);
-      } finally {
-        this.clearRefreshTokenCookie(res);
-      }
+    if (!refreshToken) {
+      this.clearRefreshTokenCookie(res);
       return;
     }
 
-    this.clearRefreshTokenCookie(res);
+    try {
+      await this.logoutUseCase.execute(refreshToken);
+    } finally {
+      this.clearRefreshTokenCookie(res);
+    }
   }
 
   private clearRefreshTokenCookie(res: Response): void {

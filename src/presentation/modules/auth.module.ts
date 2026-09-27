@@ -2,11 +2,12 @@ import { Module } from '@nestjs/common';
 import type { SessionRepository } from '~application/repositories/session.repository';
 import type { UserRepository } from '~application/repositories/user.repository';
 import type { AuthService } from '~application/services/auth.service';
-import { LogoutUseCase, RefreshUseCase } from '~application/use-cases/auth';
+import { GetMeUseCase, LogoutUseCase, RefreshUseCase } from '~application/use-cases/auth';
+import { LoginUseCase } from '~application/use-cases/auth/login.use-case';
 import { RegisterUseCase } from '~application/use-cases/auth/register.use-case';
-import { LoginUseCase } from '~application/use-cases/login.use-case';
 import {
   AUTH_SERVICE_TOKEN,
+  GET_ME_USE_CASE_TOKEN,
   LOGIN_USE_CASE_TOKEN,
   LOGOUT_USE_CASE_TOKEN,
   REFRESH_USE_CASE_TOKEN,
@@ -15,10 +16,12 @@ import {
   USER_REPOSITORY_TOKEN,
 } from '~infrastructure/config/provider-tokens';
 import { AuthController } from '~presentation/controllers/auth.controller';
+import { JwtAuthGuard } from '~presentation/guards';
 
 @Module({
   controllers: [AuthController],
   providers: [
+    JwtAuthGuard,
     {
       provide: LOGIN_USE_CASE_TOKEN,
       useFactory: (userRepo: UserRepository, sessionRepo: SessionRepository, authService: AuthService) => {
@@ -46,6 +49,13 @@ import { AuthController } from '~presentation/controllers/auth.controller';
         return new LogoutUseCase(sessionRepo);
       },
       inject: [SESSION_REPOSITORY_TOKEN],
+    },
+    {
+      provide: GET_ME_USE_CASE_TOKEN,
+      useFactory: (userRepo: UserRepository) => {
+        return new GetMeUseCase(userRepo);
+      },
+      inject: [USER_REPOSITORY_TOKEN],
     },
   ],
 })
