@@ -3,6 +3,7 @@ export const PG_CLIENT_TOKEN = Symbol('PG_CLIENT');
 
 export const GET_OK_SERVICE_TOKEN = Symbol('GET_OK_SERVICE');
 export const AUTH_SERVICE_TOKEN = Symbol('AUTH_SERVICE');
+export const TRANSFORM_SERVICE_TOKEN = Symbol('TRANSFORM_SERVICE');
 
 export const COMMENT_REPOSITORY_TOKEN = Symbol('COMMENT_REPOSITORY');
 export const IMAGE_REPOSITORY_TOKEN = Symbol('IMAGE_REPOSITORY');
