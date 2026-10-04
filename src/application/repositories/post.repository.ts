@@ -4,7 +4,7 @@ import type { PostId, UserId } from '~domain/types/branded';
 
 export interface PostRepository {
   create(post: PostInput): Promise<PostEntity>;
-  update(post: PostUpdateInput): Promise<PostEntity>;
+  update(id: PostId, post: PostUpdateInput): Promise<PostEntity>;
   delete(id: PostId): Promise<void>;
   findById(id: PostId): Promise<PostEntity | null>;
   findAll(query: PostQuery): Promise<PostEntity[]>;
@@ -16,4 +16,4 @@ export type PostQuery = PaginationQuery & {
 };
 
 export type PostInput = Omit<PostEntity, 'id' | 'createdAt' | 'updatedAt'>;
-export type PostUpdateInput = Omit<Partial<PostEntity>, 'id' | 'createdAt' | 'author'>;
+export type PostUpdateInput = Partial<Omit<PostEntity, 'id' | 'createdAt' | 'updatedAt' | 'authorId'>>;

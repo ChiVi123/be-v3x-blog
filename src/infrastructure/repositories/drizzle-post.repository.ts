@@ -28,8 +28,12 @@ export class DrizzlePostRepository implements PostRepository {
     return result;
   }
 
-  async update(post: PostUpdateInput): Promise<PostEntity> {
-    const [result] = await this.db.update(posts).set(post).returning(RETURNING_DETAILS);
+  async update(id: PostId, post: PostUpdateInput): Promise<PostEntity> {
+    const [result] = await this.db
+      .update(posts)
+      .set({ ...post, updatedAt: new Date() })
+      .where(eq(posts.id, id))
+      .returning(RETURNING_DETAILS);
     return result;
   }
 

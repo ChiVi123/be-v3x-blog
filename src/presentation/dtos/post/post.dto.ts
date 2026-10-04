@@ -24,6 +24,31 @@ export class CreatePostRequest {
   thumbnailId: ImageId | null;
 }
 
+export class UpdatePostRequest {
+  @IsString()
+  @MinLength(5)
+  @MaxLength(255)
+  @IsOptional()
+  title?: string;
+
+  @IsString()
+  @MinLength(20)
+  @MaxLength(2550)
+  @IsOptional()
+  content?: string;
+
+  @IsString()
+  @MinLength(2)
+  @MaxLength(50)
+  @IsOptional()
+  category?: string;
+
+  @IsString()
+  @IsUUID()
+  @IsOptional()
+  thumbnailId?: ImageId | null;
+}
+
 export class ListPostQueryDto {
   @IsOptional()
   @Type(() => Number)

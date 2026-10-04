@@ -1,13 +1,21 @@
 import { Module } from '@nestjs/common';
 import type { PostRepository } from '~application/repositories/post.repository';
 import type { TransformService } from '~application/services/transform.service';
-import { CreatePostUseCase } from '~application/use-cases/post/create-post.use-case';
-import { ListPostUseCase } from '~application/use-cases/post/list-post.use-case';
+import {
+  CreatePostUseCase,
+  DeletePostUseCase,
+  GetPostUseCase,
+  ListPostUseCase,
+  UpdatePostUseCase,
+} from '~application/use-cases/post';
 import {
   CREATE_POST_USE_CASE_TOKEN,
+  DELETE_POST_USE_CASE_TOKEN,
+  GET_POST_USE_CASE_TOKEN,
   LIST_POST_USE_CASE_TOKEN,
   POST_REPOSITORY_TOKEN,
   TRANSFORM_SERVICE_TOKEN,
+  UPDATE_POST_USE_CASE_TOKEN,
 } from '~infrastructure/config/provider-tokens';
 import { PostController } from '~presentation/controllers/post.controller';
 
@@ -25,6 +33,27 @@ import { PostController } from '~presentation/controllers/post.controller';
       provide: LIST_POST_USE_CASE_TOKEN,
       useFactory: (postRepo: PostRepository) => {
         return new ListPostUseCase(postRepo);
+      },
+      inject: [POST_REPOSITORY_TOKEN],
+    },
+    {
+      provide: GET_POST_USE_CASE_TOKEN,
+      useFactory: (postRepo: PostRepository) => {
+        return new GetPostUseCase(postRepo);
+      },
+      inject: [POST_REPOSITORY_TOKEN],
+    },
+    {
+      provide: UPDATE_POST_USE_CASE_TOKEN,
+      useFactory: (postRepo: PostRepository, transformService: TransformService) => {
+        return new UpdatePostUseCase(postRepo, transformService);
+      },
+      inject: [POST_REPOSITORY_TOKEN, TRANSFORM_SERVICE_TOKEN],
+    },
+    {
+      provide: DELETE_POST_USE_CASE_TOKEN,
+      useFactory: (postRepo: PostRepository) => {
+        return new DeletePostUseCase(postRepo);
       },
       inject: [POST_REPOSITORY_TOKEN],
     },
