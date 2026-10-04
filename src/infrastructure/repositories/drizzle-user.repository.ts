@@ -49,6 +49,11 @@ export class DrizzleUserRepository implements UserRepository {
     return user ?? null;
   }
 
+  async isExist(id: UserId): Promise<boolean> {
+    const [result] = await this.db.select({ count: count() }).from(users).where(eq(users.id, id));
+    return result?.count > 0;
+  }
+
   async isExistByEmail(email: string): Promise<boolean> {
     const [result] = await this.db.select({ count: count() }).from(users).where(eq(users.email, email));
     return result?.count > 0;
