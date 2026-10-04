@@ -42,9 +42,16 @@ export class DrizzlePostRepository implements PostRepository {
     return post ?? null;
   }
 
-  async findAll(_query: PostQuery): Promise<PostEntity[]> {
-    // TODO: implement query properly
-    const posts = await this.db.query.posts.findMany();
+  async findAll(query: PostQuery): Promise<PostEntity[]> {
+    const { page = 1, limit = 10, author } = query;
+    const offset = Math.max(0, (page - 1) * limit);
+
+    const posts = await this.db.query.posts.findMany({
+      where: author ? { authorId: { eq: author } } : undefined,
+      limit,
+      offset,
+      orderBy: (posts, { desc }) => [desc(posts.createdAt)],
+    });
     return posts ?? [];
   }
 

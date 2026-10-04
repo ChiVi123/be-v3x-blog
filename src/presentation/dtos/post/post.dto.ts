@@ -1,5 +1,6 @@
-import { IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
-import type { ImageId } from '~domain/types/branded';
+import { Type } from 'class-transformer';
+import { IsInt, IsOptional, IsString, IsUUID, Max, MaxLength, Min, MinLength } from 'class-validator';
+import type { ImageId, UserId } from '~domain/types/branded';
 
 export class CreatePostRequest {
   @IsString()
@@ -21,4 +22,23 @@ export class CreatePostRequest {
   @IsUUID()
   @IsOptional()
   thumbnailId: ImageId | null;
+}
+
+export class ListPostQueryDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number = 1;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit?: number = 10;
+
+  @IsOptional()
+  @IsUUID()
+  author?: UserId;
 }
