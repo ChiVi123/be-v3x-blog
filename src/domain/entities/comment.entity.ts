@@ -14,7 +14,7 @@ export class CommentEntity extends BaseEntity_legacy<CommentId> {
     postId: PostId,
     authorId: UserId,
     createdAt: Date,
-    updatedAt: Date,
+    updatedAt: Date | null | undefined,
   ) {
     super(id, createdAt, updatedAt);
     this._content = content;
@@ -82,7 +82,7 @@ export class CommentEntity extends BaseEntity_legacy<CommentId> {
     postId: PostId,
     authorId: UserId,
     createdAt: Date,
-    updatedAt: Date,
+    updatedAt: Date | null | undefined,
   ) {
     const comment = new CommentEntity(id, content, likes, postId, authorId, createdAt, updatedAt);
     return comment;
