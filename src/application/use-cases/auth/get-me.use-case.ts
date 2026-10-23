@@ -1,17 +1,9 @@
 import type { UserRepository } from '~application/repositories/user.repository';
-import type { Role } from '~domain/entities/user.entity';
+import type { UserEntity } from '~domain/entities/user.entity';
 import { UnauthorizedException } from '~domain/exceptions';
-import type { ImageId, UserId } from '~domain/types/branded';
+import type { UserId } from '~domain/types/branded';
 
-export type GetMeUseCaseResult = {
-  id: UserId;
-  username: string;
-  email: string;
-  role: Role;
-  avatarId: ImageId | null;
-  createdAt: Date;
-  updatedAt: Date;
-};
+export type GetMeUseCaseResult = Omit<UserEntity, 'password'>;
 
 export class GetMeUseCase {
   constructor(private readonly userRepository: UserRepository) {}
