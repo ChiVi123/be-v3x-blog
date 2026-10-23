@@ -5,3 +5,4 @@ export type UserId = Brand<string, 'UserId'>;
 export type PostId = Brand<string, 'PostId'>;
 export type CommentId = Brand<string, 'CommentId'>;
 export type SessionId = Brand<string, 'SessionId'>;
+export type CategoryId = Brand<string, 'CategoryId'>;

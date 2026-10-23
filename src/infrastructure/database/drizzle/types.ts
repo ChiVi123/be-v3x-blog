@@ -1,6 +1,6 @@
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import type { relations } from './relations';
-import type { comments, images, posts, sessions, users } from './schema';
+import type { categories, comments, images, posts, sessions, users } from './schema';
 
 export type DrizzleDB = NodePgDatabase<typeof relations>;
 
@@ -18,5 +18,8 @@ export type PostSelect = typeof posts.$inferSelect;
 
 export type CommentInput = typeof comments.$inferInsert;
 export type CommentSelect = typeof comments.$inferSelect;
+
+export type CategoryInput = typeof categories.$inferInsert;
+export type CategorySelect = typeof categories.$inferSelect;
 
 export type { userRoleEnum as UserRole } from './schema';

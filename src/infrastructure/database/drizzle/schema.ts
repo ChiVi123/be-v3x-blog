@@ -2,16 +2,13 @@ import { sql } from 'drizzle-orm';
 import { index, jsonb, pgEnum, pgTable, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
 import type { ImageMetadata } from '~domain/entities/image.entity';
 import { Role } from '~domain/entities/user.entity';
-import type { CommentId, ImageId, PostId, SessionId, UserId } from '~domain/types/branded';
+import type { CategoryId, CommentId, ImageId, PostId, SessionId, UserId } from '~domain/types/branded';
 
 export const userRoleEnum = pgEnum('user_role', [Role.ADMIN, Role.USER]);
 
 const timestamps = {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp('updated_at', { withTimezone: true })
-    .defaultNow()
-    .$onUpdate(() => new Date())
-    .notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).$onUpdate(() => new Date()),
 };
 
 // ==========================================
@@ -58,10 +55,6 @@ export const sessions = pgTable(
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
     ...timestamps,
   },
-  // (table) => ({
-  //   userIdIdx: index('sessions_user_id_idx').on(table.userId),
-  //   refreshTokenIdx: index('sessions_refresh_token_idx').on(table.refreshToken),
-  // }),
   (table) => [
     index('sessions_user_id_idx').on(table.userId),
     index('sessions_refresh_token_idx').on(table.refreshToken),
@@ -78,7 +71,10 @@ export const posts = pgTable(
     title: varchar('title', { length: 255 }).notNull(),
     slug: varchar('slug', { length: 255 }).notNull().unique(),
     content: text('content').notNull(),
-    category: varchar('category', { length: 100 }).notNull(),
+    categoryId: uuid('category_id')
+      .notNull()
+      .references(() => categories.id, { onDelete: 'cascade' })
+      .$type<CategoryId>(),
     authorId: uuid('author_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' })
@@ -90,7 +86,7 @@ export const posts = pgTable(
   },
   (table) => [
     index('posts_slug_idx').on(table.slug),
-    index('posts_category_idx').on(table.category),
+    index('posts_category_idx').on(table.categoryId),
     index('posts_author_id_idx').on(table.authorId),
   ],
 );
@@ -115,4 +111,18 @@ export const comments = pgTable(
     ...timestamps,
   },
   (table) => [index('comments_post_id_idx').on(table.postId), index('comments_author_id_idx').on(table.authorId)],
+);
+
+// ==========================================
+// 7. CATEGORIES TABLE
+// ==========================================
+export const categories = pgTable(
+  'categories',
+  {
+    id: uuid('id').defaultRandom().primaryKey().$type<CategoryId>(),
+    name: varchar('name', { length: 100 }).notNull().unique(),
+    slug: varchar('slug', { length: 100 }).notNull().unique(),
+    ...timestamps,
+  },
+  (table) => [index('categories_name_idx').on(table.name), index('categories_slug_idx').on(table.slug)],
 );
