@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import type { PostRepository } from '~application/repositories/post.repository';
 import type { PostEntity } from '~domain/entities/post.entity';
 import { EntityNotFoundException } from '~domain/exceptions';
-import type { ImageId, PostId, UserId } from '~domain/types/branded';
+import type { CategoryId, ImageId, PostId, UserId } from '~domain/types/branded';
 import { GetPostUseCase } from './get-post.use-case';
 
 describe('GetPostUseCase', () => {
@@ -14,7 +14,7 @@ describe('GetPostUseCase', () => {
     title: 'Test Post',
     slug: 'test-post',
     content: 'Content with enough length.',
-    category: 'Tech',
+    categoryId: 'Tech' as CategoryId,
     authorId: 'user-1' as UserId,
     thumbnailId: null as ImageId | null,
     createdAt: new Date('2026-01-01T00:00:00Z'),

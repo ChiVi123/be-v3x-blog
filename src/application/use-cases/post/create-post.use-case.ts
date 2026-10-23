@@ -1,13 +1,13 @@
 import type { PostRepository } from '~application/repositories/post.repository';
 import type { TransformService } from '~application/services/transform.service';
 import type { PostEntity } from '~domain/entities/post.entity';
-import type { ImageId, UserId } from '~domain/types/branded';
+import type { CategoryId, ImageId, UserId } from '~domain/types/branded';
 
 type PostParams = {
   title: string;
   content: string;
   authorId: UserId;
-  category: string;
+  categoryId: CategoryId;
   thumbnailId: ImageId | null;
 };
 

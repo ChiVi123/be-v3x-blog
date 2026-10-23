@@ -12,7 +12,7 @@ const RETURNING_DETAILS = {
   title: posts.title,
   slug: posts.slug,
   content: posts.content,
-  category: posts.category,
+  categoryId: posts.categoryId,
   authorId: posts.authorId,
   thumbnailId: posts.thumbnailId,
   createdAt: posts.createdAt,

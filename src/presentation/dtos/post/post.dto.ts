@@ -1,6 +1,6 @@
 import { Type } from 'class-transformer';
 import { IsInt, IsOptional, IsString, IsUUID, Max, MaxLength, Min, MinLength } from 'class-validator';
-import type { ImageId, UserId } from '~domain/types/branded';
+import type { CategoryId, ImageId, UserId } from '~domain/types/branded';
 
 export class CreatePostRequest {
   @IsString()
@@ -13,12 +13,9 @@ export class CreatePostRequest {
   @MaxLength(2550)
   content: string;
 
-  @IsString()
-  @MinLength(2)
-  @MaxLength(50)
-  category: string;
+  @IsUUID()
+  categoryId: CategoryId;
 
-  @IsString()
   @IsUUID()
   @IsOptional()
   thumbnailId: ImageId | null;
@@ -37,13 +34,10 @@ export class UpdatePostRequest {
   @IsOptional()
   content?: string;
 
-  @IsString()
-  @MinLength(2)
-  @MaxLength(50)
+  @IsUUID()
   @IsOptional()
-  category?: string;
+  categoryId?: CategoryId;
 
-  @IsString()
   @IsUUID()
   @IsOptional()
   thumbnailId?: ImageId | null;

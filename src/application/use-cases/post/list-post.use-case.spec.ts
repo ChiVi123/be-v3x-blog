@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import type { PostRepository } from '~application/repositories/post.repository';
 import type { PostEntity } from '~domain/entities/post.entity';
-import type { ImageId, PostId, UserId } from '~domain/types/branded';
+import type { CategoryId, ImageId, PostId, UserId } from '~domain/types/branded';
 import { ListPostUseCase } from './list-post.use-case';
 
 describe('ListPostUseCase', () => {
@@ -14,7 +14,7 @@ describe('ListPostUseCase', () => {
       title: 'First Post',
       slug: 'first-post',
       content: 'This is the first post content.',
-      category: 'Tech',
+      categoryId: 'Tech' as CategoryId,
       authorId: 'user-1' as UserId,
       thumbnailId: null as ImageId | null,
       createdAt: new Date('2026-01-01T00:00:00Z'),

@@ -28,7 +28,7 @@ describe('PostController', () => {
     title: 'Test Post',
     slug: 'test-post',
     content: 'Valid content that has more than twenty characters.',
-    category: 'Tech',
+    categoryId: 'Tech',
     authorId: 'user-1' as UserId,
     thumbnailId: null as ImageId | null,
     createdAt: new Date('2026-01-01T00:00:00Z'),

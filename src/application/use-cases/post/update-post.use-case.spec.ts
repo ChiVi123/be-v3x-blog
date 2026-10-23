@@ -3,7 +3,7 @@ import type { PostRepository } from '~application/repositories/post.repository';
 import type { TransformService } from '~application/services/transform.service';
 import type { PostEntity } from '~domain/entities/post.entity';
 import { EntityNotFoundException, ForbiddenException } from '~domain/exceptions';
-import type { ImageId, PostId, UserId } from '~domain/types/branded';
+import type { CategoryId, ImageId, PostId, UserId } from '~domain/types/branded';
 import { UpdatePostUseCase } from './update-post.use-case';
 
 describe('UpdatePostUseCase', () => {
@@ -16,7 +16,7 @@ describe('UpdatePostUseCase', () => {
     title: 'Original Title',
     slug: 'original-title',
     content: 'Original content with plenty of detail.',
-    category: 'Tech',
+    categoryId: 'Tech' as CategoryId,
     authorId: 'user-1' as UserId,
     thumbnailId: null as ImageId | null,
     createdAt: new Date('2026-01-01T00:00:00Z'),

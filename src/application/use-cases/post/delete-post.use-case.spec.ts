@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import type { PostRepository } from '~application/repositories/post.repository';
 import type { PostEntity } from '~domain/entities/post.entity';
 import { EntityNotFoundException, ForbiddenException } from '~domain/exceptions';
-import type { ImageId, PostId, UserId } from '~domain/types/branded';
+import type { CategoryId, ImageId, PostId, UserId } from '~domain/types/branded';
 import { DeletePostUseCase } from './delete-post.use-case';
 
 describe('DeletePostUseCase', () => {
@@ -14,7 +14,7 @@ describe('DeletePostUseCase', () => {
     title: 'Post To Delete',
     slug: 'post-to-delete',
     content: 'Content to be deleted.',
-    category: 'Tech',
+    categoryId: 'Tech' as CategoryId,
     authorId: 'user-1' as UserId,
     thumbnailId: null as ImageId | null,
     createdAt: new Date('2026-01-01T00:00:00Z'),
