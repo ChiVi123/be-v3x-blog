@@ -1,0 +1,16 @@
+export default [
+  'Architecture Design',
+  'React.js',
+  'Next.js',
+  'Node.js',
+  'NestJS',
+  'Express',
+  'PostgreSQL',
+  'Redis',
+  'Bun',
+  'TypeScript',
+  'JavaScript',
+  'HTML',
+  'CSS',
+  'Tailwind CSS',
+];
