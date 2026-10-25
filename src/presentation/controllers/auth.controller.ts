@@ -1,20 +1,13 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Inject, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import type { CookieOptions, Request, Response } from 'express';
+// biome-ignore lint/style/useImportType: Facade class is required for NestJS DI reflection
+import { AuthFacade } from '~application/facades/auth.facade';
 import type { ClientContext } from '~application/types/use-case.type';
-import type { GetMeUseCase, LogoutUseCase, RefreshUseCase, RegisterUseCase } from '~application/use-cases/auth';
-import type { LoginUseCase } from '~application/use-cases/auth/login.use-case';
 import { Role } from '~domain/entities/user.entity';
 import { UnauthorizedException } from '~domain/exceptions';
 import type { UserId } from '~domain/types/branded';
 import { AppConfigService } from '~infrastructure/config/env';
-import {
-  GET_ME_USE_CASE_TOKEN,
-  LOGIN_USE_CASE_TOKEN,
-  LOGOUT_USE_CASE_TOKEN,
-  REFRESH_USE_CASE_TOKEN,
-  REGISTER_USE_CASE_TOKEN,
-} from '~infrastructure/config/provider-tokens';
 import { ClientInfo, CurrentUser } from '~presentation/decorators';
 // biome-ignore lint/style/useImportType: DTO class is required for NestJS ValidationPipe metadata reflection
 import { PublicRegisterRequest } from '~presentation/dtos/auth/register.dto';
@@ -31,16 +24,7 @@ export class AuthController {
   // private readonly logger = new Logger(AuthController.name);
 
   constructor(
-    @Inject(LOGIN_USE_CASE_TOKEN)
-    private readonly loginUseCase: LoginUseCase,
-    @Inject(REGISTER_USE_CASE_TOKEN)
-    private readonly registerUseCase: RegisterUseCase,
-    @Inject(REFRESH_USE_CASE_TOKEN)
-    private readonly refreshUseCase: RefreshUseCase,
-    @Inject(LOGOUT_USE_CASE_TOKEN)
-    private readonly logoutUseCase: LogoutUseCase,
-    @Inject(GET_ME_USE_CASE_TOKEN)
-    private readonly getMeUseCase: GetMeUseCase,
+    private readonly authFacade: AuthFacade,
     @Inject(AppConfigService) private readonly configService: AppConfigService,
   ) {}
 
@@ -53,7 +37,7 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
     @ClientInfo() clientContext: ClientContext,
   ) {
-    const { refreshToken, refreshTokenExpiryDate, accessToken } = await this.loginUseCase.execute({
+    const { refreshToken, refreshTokenExpiryDate, accessToken } = await this.authFacade.login({
       email: body.email,
       password: body.password,
       clientContext,
@@ -69,7 +53,7 @@ export class AuthController {
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 5, ttl: ONE_HOUR_MS } })
   async register(@Body() body: PublicRegisterRequest) {
-    return this.registerUseCase.execute({
+    return this.authFacade.register({
       email: body.email,
       password: body.password,
       username: body.username,
@@ -96,7 +80,7 @@ export class AuthController {
       accessToken,
       refreshToken: newRefreshToken,
       refreshTokenExpiryDate,
-    } = await this.refreshUseCase.execute({
+    } = await this.authFacade.refresh({
       refreshToken,
       clientContext,
     });
@@ -109,7 +93,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
   async me(@CurrentUser('id') userId: UserId) {
-    return this.getMeUseCase.execute(userId);
+    return this.authFacade.getMe(userId);
   }
 
   @Post('logout')
@@ -124,7 +108,7 @@ export class AuthController {
     }
 
     try {
-      await this.logoutUseCase.execute(refreshToken);
+      await this.authFacade.logout(refreshToken);
     } finally {
       this.clearRefreshTokenCookie(res);
     }

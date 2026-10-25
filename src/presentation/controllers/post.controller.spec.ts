@@ -2,32 +2,26 @@ import 'reflect-metadata';
 
 import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import { Test, type TestingModule } from '@nestjs/testing';
+import { PostFacade } from '~application/facades/post.facade';
 import type { PostDetail, PostRow } from '~application/repositories/post.repository';
 import type { PostEntity } from '~domain/entities/post.entity';
 import type { CategoryId, ImageId, PostId, UserId } from '~domain/types/branded';
-import {
-  AUTH_SERVICE_TOKEN,
-  CREATE_POST_USE_CASE_TOKEN,
-  DELETE_POST_USE_CASE_TOKEN,
-  GET_POST_DETAIL_USE_CASE_TOKEN,
-  GET_POST_USE_CASE_TOKEN,
-  LIST_POST_USE_CASE_TOKEN,
-  QUERY_POST_USE_CASE_TOKEN,
-  UPDATE_POST_USE_CASE_TOKEN,
-} from '~infrastructure/config/provider-tokens';
+import { AUTH_SERVICE_TOKEN } from '~infrastructure/config/provider-tokens';
 import { PostController } from '~presentation/controllers/post.controller';
 import type { CreatePostRequest } from '~presentation/dtos/post/post.dto';
 import { JwtAuthGuard } from '~presentation/guards';
 
 describe('PostController', () => {
   let controller: PostController;
-  let mockCreatePostUseCase: { execute: ReturnType<typeof mock> };
-  let mockListPostUseCase: { execute: ReturnType<typeof mock> };
-  let mockQueryPostUseCase: { execute: ReturnType<typeof mock> };
-  let mockGetPostUseCase: { execute: ReturnType<typeof mock> };
-  let mockGetPostDetailUseCase: { execute: ReturnType<typeof mock> };
-  let mockUpdatePostUseCase: { execute: ReturnType<typeof mock> };
-  let mockDeletePostUseCase: { execute: ReturnType<typeof mock> };
+  let mockPostFacade: {
+    createPost: ReturnType<typeof mock>;
+    listPosts: ReturnType<typeof mock>;
+    queryPosts: ReturnType<typeof mock>;
+    getPost: ReturnType<typeof mock>;
+    getPostDetail: ReturnType<typeof mock>;
+    updatePost: ReturnType<typeof mock>;
+    deletePost: ReturnType<typeof mock>;
+  };
 
   const mockPost: PostEntity = {
     id: 'post-1' as PostId,
@@ -65,58 +59,22 @@ describe('PostController', () => {
   };
 
   beforeEach(async () => {
-    mockCreatePostUseCase = {
-      execute: mock(async () => mockPost),
-    };
-    mockListPostUseCase = {
-      execute: mock(async () => ({ data: [mockPostRow] })),
-    };
-    mockQueryPostUseCase = {
-      execute: mock(async () => ({ data: [mockPostRow], total: 1 })),
-    };
-    mockGetPostUseCase = {
-      execute: mock(async () => mockPost),
-    };
-    mockGetPostDetailUseCase = {
-      execute: mock(async () => mockPostDetail),
-    };
-    mockUpdatePostUseCase = {
-      execute: mock(async () => ({ ...mockPost, title: 'Updated Title' })),
-    };
-    mockDeletePostUseCase = {
-      execute: mock(async () => undefined),
+    mockPostFacade = {
+      createPost: mock(async () => mockPost),
+      listPosts: mock(async () => ({ data: [mockPostRow] })),
+      queryPosts: mock(async () => ({ data: [mockPostRow], total: 1 })),
+      getPost: mock(async () => mockPost),
+      getPostDetail: mock(async () => mockPostDetail),
+      updatePost: mock(async () => ({ ...mockPost, title: 'Updated Title' })),
+      deletePost: mock(async () => undefined),
     };
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [PostController],
       providers: [
         {
-          provide: CREATE_POST_USE_CASE_TOKEN,
-          useValue: mockCreatePostUseCase,
-        },
-        {
-          provide: LIST_POST_USE_CASE_TOKEN,
-          useValue: mockListPostUseCase,
-        },
-        {
-          provide: QUERY_POST_USE_CASE_TOKEN,
-          useValue: mockQueryPostUseCase,
-        },
-        {
-          provide: GET_POST_USE_CASE_TOKEN,
-          useValue: mockGetPostUseCase,
-        },
-        {
-          provide: GET_POST_DETAIL_USE_CASE_TOKEN,
-          useValue: mockGetPostDetailUseCase,
-        },
-        {
-          provide: UPDATE_POST_USE_CASE_TOKEN,
-          useValue: mockUpdatePostUseCase,
-        },
-        {
-          provide: DELETE_POST_USE_CASE_TOKEN,
-          useValue: mockDeletePostUseCase,
+          provide: PostFacade,
+          useValue: mockPostFacade,
         },
         {
           provide: AUTH_SERVICE_TOKEN,
@@ -137,47 +95,47 @@ describe('PostController', () => {
   });
 
   describe('getListPost', () => {
-    it('should delegate query parameters to listPostUseCase', async () => {
+    it('should delegate query parameters to postFacade.listPosts', async () => {
       const query = { page: 1, limit: 10 };
       const result = await controller.getListPost(query);
 
-      expect(mockListPostUseCase.execute).toHaveBeenCalledWith(query);
+      expect(mockPostFacade.listPosts).toHaveBeenCalledWith(query);
       expect(result).toEqual({ data: [mockPostRow] });
     });
   });
 
   describe('getAllPost', () => {
-    it('should delegate query parameters to queryPostUseCase', async () => {
+    it('should delegate query parameters to postFacade.queryPosts', async () => {
       const query = { page: 1, limit: 10 };
       const result = await controller.getAllPost(query);
 
-      expect(mockQueryPostUseCase.execute).toHaveBeenCalledWith(query);
+      expect(mockPostFacade.queryPosts).toHaveBeenCalledWith(query);
       expect(result).toEqual({ data: [mockPostRow], total: 1 });
     });
   });
 
   describe('getPostById', () => {
-    it('should delegate id to getPostUseCase', async () => {
+    it('should delegate id to postFacade.getPost', async () => {
       const postId = 'post-1' as PostId;
       const result = await controller.getPostById(postId);
 
-      expect(mockGetPostUseCase.execute).toHaveBeenCalledWith(postId);
+      expect(mockPostFacade.getPost).toHaveBeenCalledWith(postId);
       expect(result).toEqual(mockPost);
     });
   });
 
   describe('getPostBySlug', () => {
-    it('should delegate slug to getPostDetailUseCase', async () => {
+    it('should delegate slug to postFacade.getPostDetail', async () => {
       const slug = 'test-post';
       const result = await controller.getPostBySlug(slug);
 
-      expect(mockGetPostDetailUseCase.execute).toHaveBeenCalledWith(slug);
+      expect(mockPostFacade.getPostDetail).toHaveBeenCalledWith(slug);
       expect(result).toEqual(mockPostDetail);
     });
   });
 
   describe('createPost', () => {
-    it('should attach authenticated userId and delegate to createPostUseCase', async () => {
+    it('should attach authenticated userId and delegate to postFacade.createPost', async () => {
       const body: CreatePostRequest = {
         title: 'Test Post',
         content: 'Valid content that has more than twenty characters.',
@@ -188,7 +146,7 @@ describe('PostController', () => {
 
       const result = await controller.createPost(body, userId);
 
-      expect(mockCreatePostUseCase.execute).toHaveBeenCalledWith({
+      expect(mockPostFacade.createPost).toHaveBeenCalledWith({
         ...body,
         authorId: userId,
       });
@@ -197,14 +155,14 @@ describe('PostController', () => {
   });
 
   describe('updatePost', () => {
-    it('should attach id and authorId and delegate to updatePostUseCase', async () => {
+    it('should attach id and authorId and delegate to postFacade.updatePost', async () => {
       const postId = 'post-1' as PostId;
       const userId = 'user-1' as UserId;
       const body = { title: 'Updated Title' };
 
       const result = await controller.updatePost(postId, body, userId);
 
-      expect(mockUpdatePostUseCase.execute).toHaveBeenCalledWith({
+      expect(mockPostFacade.updatePost).toHaveBeenCalledWith({
         id: postId,
         authorId: userId,
         ...body,
@@ -214,13 +172,13 @@ describe('PostController', () => {
   });
 
   describe('deletePost', () => {
-    it('should attach id and authorId and delegate to deletePostUseCase', async () => {
+    it('should attach id and authorId and delegate to postFacade.deletePost', async () => {
       const postId = 'post-1' as PostId;
       const userId = 'user-1' as UserId;
 
       await controller.deletePost(postId, userId);
 
-      expect(mockDeletePostUseCase.execute).toHaveBeenCalledWith({
+      expect(mockPostFacade.deletePost).toHaveBeenCalledWith({
         id: postId,
         authorId: userId,
       });

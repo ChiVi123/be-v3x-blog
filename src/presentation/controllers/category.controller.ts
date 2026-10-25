@@ -1,17 +1,14 @@
-import { Controller, Get, HttpCode, Inject } from '@nestjs/common';
-import type { GetAllCategoryPublicUseCase } from '~application/use-cases/category';
-import { GET_ALL_CATEGORY_PUBLIC_USE_CASE_TOKEN } from '~infrastructure/config/provider-tokens';
+import { Controller, Get, HttpCode } from '@nestjs/common';
+// biome-ignore lint/style/useImportType: Facade class is required for NestJS DI reflection
+import { CategoryFacade } from '~application/facades/category.facade';
 
 @Controller('categories')
 export class CategoryController {
-  constructor(
-    @Inject(GET_ALL_CATEGORY_PUBLIC_USE_CASE_TOKEN)
-    private readonly getAllCategoryPublicUseCase: GetAllCategoryPublicUseCase,
-  ) {}
+  constructor(private readonly categoryFacade: CategoryFacade) {}
 
   @Get()
   @HttpCode(200)
   async findAll() {
-    return this.getAllCategoryPublicUseCase.execute();
+    return this.categoryFacade.getAllPublic();
   }
 }

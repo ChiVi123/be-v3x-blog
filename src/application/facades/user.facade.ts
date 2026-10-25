@@ -1,10 +1,10 @@
 import type { UserRepository } from '~application/repositories/user.repository';
 import type { UserId } from '~domain/types/branded';
 
-export class GetAuthorUseCase {
+export class UserFacade {
   constructor(private readonly userRepository: UserRepository) {}
 
-  async execute(userId: UserId) {
+  getAuthor(userId: UserId) {
     return this.userRepository.findById(userId);
   }
 }

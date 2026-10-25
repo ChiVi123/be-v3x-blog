@@ -1,18 +1,15 @@
 import { Module } from '@nestjs/common';
+import { UserFacade } from '~application/facades/user.facade';
 import type { UserRepository } from '~application/repositories/user.repository';
-import { GetAuthorUseCase } from '~application/use-cases/user/get-author.use-case';
-import { GET_AUTHOR_USE_CASE_TOKEN, USER_REPOSITORY_TOKEN } from '~infrastructure/config/provider-tokens';
+import { USER_REPOSITORY_TOKEN } from '~infrastructure/config/provider-tokens';
 import { UserController } from '~presentation/controllers/user.controller';
 
 @Module({
-  imports: [],
   controllers: [UserController],
   providers: [
     {
-      provide: GET_AUTHOR_USE_CASE_TOKEN,
-      useFactory: (userRepo: UserRepository) => {
-        return new GetAuthorUseCase(userRepo);
-      },
+      provide: UserFacade,
+      useFactory: (userRepo: UserRepository) => new UserFacade(userRepo),
       inject: [USER_REPOSITORY_TOKEN],
     },
   ],

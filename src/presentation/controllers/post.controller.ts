@@ -5,7 +5,6 @@ import {
   Get,
   HttpCode,
   HttpStatus,
-  Inject,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -13,25 +12,9 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import type {
-  CreatePostUseCase,
-  DeletePostUseCase,
-  GetPostDetailUseCase,
-  GetPostUseCase,
-  ListPostUseCase,
-  QueryPostUseCase,
-  UpdatePostUseCase,
-} from '~application/use-cases/post';
+// biome-ignore lint/style/useImportType: Facade class is required for NestJS DI reflection
+import { PostFacade } from '~application/facades/post.facade';
 import type { PostId, UserId } from '~domain/types/branded';
-import {
-  CREATE_POST_USE_CASE_TOKEN,
-  DELETE_POST_USE_CASE_TOKEN,
-  GET_POST_DETAIL_USE_CASE_TOKEN,
-  GET_POST_USE_CASE_TOKEN,
-  LIST_POST_USE_CASE_TOKEN,
-  QUERY_POST_USE_CASE_TOKEN,
-  UPDATE_POST_USE_CASE_TOKEN,
-} from '~infrastructure/config/provider-tokens';
 import { CurrentUser } from '~presentation/decorators';
 // biome-ignore lint/style/useImportType: DTO class is required for NestJS ValidationPipe metadata reflection
 import { CreatePostRequest, ListPostQueryDto, UpdatePostRequest } from '~presentation/dtos/post/post.dto';
@@ -39,48 +22,33 @@ import { JwtAuthGuard } from '~presentation/guards';
 
 @Controller('posts')
 export class PostController {
-  constructor(
-    @Inject(CREATE_POST_USE_CASE_TOKEN)
-    private readonly createPostUseCase: CreatePostUseCase,
-    @Inject(LIST_POST_USE_CASE_TOKEN)
-    private readonly listPostUseCase: ListPostUseCase,
-    @Inject(QUERY_POST_USE_CASE_TOKEN)
-    private readonly queryPostUseCase: QueryPostUseCase,
-    @Inject(GET_POST_USE_CASE_TOKEN)
-    private readonly getPostUseCase: GetPostUseCase,
-    @Inject(GET_POST_DETAIL_USE_CASE_TOKEN)
-    private readonly getPostDetailUseCase: GetPostDetailUseCase,
-    @Inject(UPDATE_POST_USE_CASE_TOKEN)
-    private readonly updatePostUseCase: UpdatePostUseCase,
-    @Inject(DELETE_POST_USE_CASE_TOKEN)
-    private readonly deletePostUseCase: DeletePostUseCase,
-  ) {}
+  constructor(private readonly postFacade: PostFacade) {}
 
   @Get()
   getListPost(@Query() query: ListPostQueryDto) {
-    return this.listPostUseCase.execute(query);
+    return this.postFacade.listPosts(query);
   }
 
   @Get('all')
   getAllPost(@Query() query: ListPostQueryDto) {
-    return this.queryPostUseCase.execute(query);
+    return this.postFacade.queryPosts(query);
   }
 
   @Get(':id')
   getPostById(@Param('id', new ParseUUIDPipe()) id: PostId) {
-    return this.getPostUseCase.execute(id);
+    return this.postFacade.getPost(id);
   }
 
   @Get('detail/:slug')
   getPostBySlug(@Param('slug') slug: string) {
-    return this.getPostDetailUseCase.execute(slug);
+    return this.postFacade.getPostDetail(slug);
   }
 
   @Post()
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.CREATED)
   createPost(@Body() body: CreatePostRequest, @CurrentUser('id') userId: UserId) {
-    return this.createPostUseCase.execute({ ...body, authorId: userId });
+    return this.postFacade.createPost({ ...body, authorId: userId });
   }
 
   @Patch(':id')
@@ -91,13 +59,13 @@ export class PostController {
     @Body() body: UpdatePostRequest,
     @CurrentUser('id') userId: UserId,
   ) {
-    return this.updatePostUseCase.execute({ id, authorId: userId, ...body });
+    return this.postFacade.updatePost({ id, authorId: userId, ...body });
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
   async deletePost(@Param('id', new ParseUUIDPipe()) id: PostId, @CurrentUser('id') userId: UserId) {
-    await this.deletePostUseCase.execute({ id, authorId: userId });
+    await this.postFacade.deletePost({ id, authorId: userId });
   }
 }

@@ -1,14 +1,14 @@
-import { Controller, Get, Inject, Param } from '@nestjs/common';
-import type { GetAuthorUseCase } from '~application/use-cases/user/get-author.use-case';
+import { Controller, Get, Param } from '@nestjs/common';
+// biome-ignore lint/style/useImportType: Facade class is required for NestJS DI reflection
+import { UserFacade } from '~application/facades/user.facade';
 import type { UserId } from '~domain/types/branded';
-import { GET_AUTHOR_USE_CASE_TOKEN } from '~infrastructure/config/provider-tokens';
 
 @Controller('users')
 export class UserController {
-  constructor(@Inject(GET_AUTHOR_USE_CASE_TOKEN) private readonly getAuthorUseCase: GetAuthorUseCase) {}
+  constructor(private readonly userFacade: UserFacade) {}
 
   @Get(':id')
   getAuthor(@Param('id') id: UserId) {
-    return this.getAuthorUseCase.execute(id);
+    return this.userFacade.getAuthor(id);
   }
 }
