@@ -8,7 +8,7 @@ import { DatabaseModule } from '~infrastructure/database/database.module';
 import { RepositoriesModule } from '~infrastructure/repositories/repositories.module';
 import { ServicesModule } from '~infrastructure/services/services.module';
 import { GlobalExceptionFilter } from '~presentation/filters';
-import { AuthModule, HealthCheckModule, PostModule, UserModule } from '~presentation/modules';
+import { AuthModule, CategoryModule, HealthCheckModule, PostModule, UserModule } from '~presentation/modules';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -36,6 +36,7 @@ import { AppService } from './app.service';
     HealthCheckModule,
     PostModule,
     UserModule,
+    CategoryModule,
   ],
   controllers: [AppController],
   providers: [

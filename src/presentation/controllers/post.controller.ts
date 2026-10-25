@@ -16,16 +16,20 @@ import {
 import type {
   CreatePostUseCase,
   DeletePostUseCase,
+  GetPostDetailUseCase,
   GetPostUseCase,
   ListPostUseCase,
+  QueryPostUseCase,
   UpdatePostUseCase,
 } from '~application/use-cases/post';
 import type { PostId, UserId } from '~domain/types/branded';
 import {
   CREATE_POST_USE_CASE_TOKEN,
   DELETE_POST_USE_CASE_TOKEN,
+  GET_POST_DETAIL_USE_CASE_TOKEN,
   GET_POST_USE_CASE_TOKEN,
   LIST_POST_USE_CASE_TOKEN,
+  QUERY_POST_USE_CASE_TOKEN,
   UPDATE_POST_USE_CASE_TOKEN,
 } from '~infrastructure/config/provider-tokens';
 import { CurrentUser } from '~presentation/decorators';
@@ -40,8 +44,12 @@ export class PostController {
     private readonly createPostUseCase: CreatePostUseCase,
     @Inject(LIST_POST_USE_CASE_TOKEN)
     private readonly listPostUseCase: ListPostUseCase,
+    @Inject(QUERY_POST_USE_CASE_TOKEN)
+    private readonly queryPostUseCase: QueryPostUseCase,
     @Inject(GET_POST_USE_CASE_TOKEN)
     private readonly getPostUseCase: GetPostUseCase,
+    @Inject(GET_POST_DETAIL_USE_CASE_TOKEN)
+    private readonly getPostDetailUseCase: GetPostDetailUseCase,
     @Inject(UPDATE_POST_USE_CASE_TOKEN)
     private readonly updatePostUseCase: UpdatePostUseCase,
     @Inject(DELETE_POST_USE_CASE_TOKEN)
@@ -53,9 +61,19 @@ export class PostController {
     return this.listPostUseCase.execute(query);
   }
 
+  @Get('all')
+  getAllPost(@Query() query: ListPostQueryDto) {
+    return this.queryPostUseCase.execute(query);
+  }
+
   @Get(':id')
   getPostById(@Param('id', new ParseUUIDPipe()) id: PostId) {
     return this.getPostUseCase.execute(id);
+  }
+
+  @Get('detail/:slug')
+  getPostBySlug(@Param('slug') slug: string) {
+    return this.getPostDetailUseCase.execute(slug);
   }
 
   @Post()

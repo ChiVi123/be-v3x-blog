@@ -1,12 +1,13 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { count, eq } from 'drizzle-orm';
 import type {
+  Author,
   UserCreateInput,
   UserOutput,
   UserRepository,
   UserUpdateInput,
 } from '~application/repositories/user.repository';
-import type { UserEntity } from '~domain/entities/user.entity';
+import type { UserEntity } from '~domain/entities';
 import type { UserId } from '~domain/types/branded';
 import { DRIZZLE_DB_TOKEN } from '~infrastructure/config/provider-tokens';
 import { users } from '~infrastructure/database/drizzle/schema';
@@ -39,13 +40,18 @@ export class DrizzleUserRepository implements UserRepository {
     await this.db.delete(users).where(eq(users.id, id));
   }
 
-  async findById(id: UserId): Promise<UserEntity | null> {
+  async findById(id: UserId): Promise<Author | null> {
     const user = await this.db.query.users.findFirst({ where: { id: { eq: id } } });
     return user ?? null;
   }
 
-  async findByEmail(email: string): Promise<UserEntity | null> {
-    const user = await this.db.query.users.findFirst({ where: { email: { eq: email } } });
+  async findByEmail(email: string): Promise<Author | null>;
+  async findByEmail(email: string, includePassword: true): Promise<UserEntity | null>;
+  async findByEmail(email: string, includePassword?: boolean): Promise<UserEntity | Author | null> {
+    const user = await this.db.query.users.findFirst({
+      where: { email: { eq: email } },
+      ...(includePassword ? { columns: { password: true } } : {}),
+    });
     return user ?? null;
   }
 

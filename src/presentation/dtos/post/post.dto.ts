@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
 import { IsInt, IsOptional, IsString, IsUUID, Max, MaxLength, Min, MinLength } from 'class-validator';
+import type { PostQuery } from '~application/repositories/post.repository';
 import type { CategoryId, ImageId, UserId } from '~domain/types/branded';
 
 export class CreatePostRequest {
@@ -43,21 +44,31 @@ export class UpdatePostRequest {
   thumbnailId?: ImageId | null;
 }
 
-export class ListPostQueryDto {
+export class ListPostQueryDto implements PostQuery {
+  @IsString()
   @IsOptional()
+  query?: string;
+
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  page?: number = 1;
+  page: number;
 
-  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   @Max(100)
-  limit?: number = 10;
+  limit: number;
 
   @IsOptional()
   @IsUUID()
   author?: UserId;
+
+  @IsString()
+  @IsOptional()
+  sortBy?: string;
+
+  @IsString()
+  @IsOptional()
+  sortOrder?: 'asc' | 'desc';
 }

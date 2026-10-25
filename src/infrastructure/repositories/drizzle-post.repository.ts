@@ -1,6 +1,13 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
-import type { PostInput, PostQuery, PostRepository, PostUpdateInput } from '~application/repositories/post.repository';
+import type {
+  PostDetail,
+  PostInput,
+  PostQuery,
+  PostRepository,
+  PostRow,
+  PostUpdateInput,
+} from '~application/repositories/post.repository';
 import type { PostEntity } from '~domain/entities/post.entity';
 import type { PostId, UserId } from '~domain/types/branded';
 import { DRIZZLE_DB_TOKEN } from '~infrastructure/config/provider-tokens';
@@ -18,6 +25,17 @@ const RETURNING_DETAILS = {
   createdAt: posts.createdAt,
   updatedAt: posts.updatedAt,
 };
+const QUERY_ROW = { authorId: false, categoryId: false, thumbnailId: false, content: false } as const;
+const QUERY_DETAIL = { authorId: false, categoryId: false, thumbnailId: false } as const;
+const QUERY_WITH = {
+  author: {
+    columns: {
+      password: false,
+    },
+  },
+  category: true,
+  thumbnail: true,
+} as const;
 
 @Injectable()
 export class DrizzlePostRepository implements PostRepository {
@@ -46,7 +64,19 @@ export class DrizzlePostRepository implements PostRepository {
     return post ?? null;
   }
 
-  async findAll(query: PostQuery): Promise<PostEntity[]> {
+  async findBy<Key extends keyof PostEntity, Value extends PostEntity[Key]>(
+    key: Key,
+    value: Value,
+  ): Promise<PostDetail | null> {
+    const post = await this.db.query.posts.findFirst({
+      where: { [key]: { eq: value } },
+      columns: QUERY_DETAIL,
+      with: QUERY_WITH,
+    });
+    return post ?? null;
+  }
+
+  async findAll(query: PostQuery): Promise<PostRow[]> {
     const { page = 1, limit = 10, author } = query;
     const offset = Math.max(0, (page - 1) * limit);
 
@@ -55,13 +85,17 @@ export class DrizzlePostRepository implements PostRepository {
       limit,
       offset,
       orderBy: (posts, { desc }) => [desc(posts.createdAt)],
+      columns: QUERY_ROW,
+      with: QUERY_WITH,
     });
     return posts ?? [];
   }
 
-  async findByUserId(userId: UserId): Promise<PostEntity[]> {
+  async findByUserId(userId: UserId): Promise<PostRow[]> {
     const posts = await this.db.query.posts.findMany({
       where: { authorId: { eq: userId } },
+      columns: QUERY_ROW,
+      with: QUERY_WITH,
     });
     return posts ?? [];
   }
