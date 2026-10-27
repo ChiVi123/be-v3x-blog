@@ -1,5 +1,5 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { eq } from 'drizzle-orm';
+import { Inject, Injectable, Logger } from '@nestjs/common';
+import { count, desc, eq } from 'drizzle-orm';
 import type {
   CategoryDetail,
   CategoryInput,
@@ -9,7 +9,7 @@ import type {
 import type { CategoryEntity } from '~domain/entities';
 import type { CategoryId } from '~domain/types/branded';
 import { DRIZZLE_DB_TOKEN } from '~infrastructure/config/provider-tokens';
-import { categories } from '~infrastructure/database/drizzle/schema';
+import { categories, posts } from '~infrastructure/database/drizzle/schema';
 import type { DrizzleDB } from '~infrastructure/database/drizzle/types';
 
 const RETURNING_DETAILS = {
@@ -22,7 +22,11 @@ const RETURNING_DETAILS = {
 
 @Injectable()
 export class DrizzleCategoryRepository implements CategoryRepository {
+  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: logger will be used in the future
+  private readonly logger = new Logger(DrizzleCategoryRepository.name);
+
   constructor(@Inject(DRIZZLE_DB_TOKEN) private readonly db: DrizzleDB) {}
+
   async create(category: CategoryInput): Promise<CategoryEntity> {
     const [result] = await this.db.insert(categories).values(category).returning(RETURNING_DETAILS);
     return result;
@@ -43,7 +47,12 @@ export class DrizzleCategoryRepository implements CategoryRepository {
     return data ?? null;
   }
   async findAll(): Promise<CategoryRow[]> {
-    const data = await this.db.query.categories.findMany();
+    const data = await this.db
+      .select({ id: categories.id, name: categories.name, postsCount: count(posts.id) })
+      .from(categories)
+      .leftJoin(posts, eq(categories.id, posts.categoryId))
+      .groupBy(categories.id)
+      .orderBy(desc(categories.createdAt));
     return data;
   }
   async findBySlug(slug: string): Promise<CategoryDetail | null> {

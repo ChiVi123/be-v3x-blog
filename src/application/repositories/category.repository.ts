@@ -13,5 +13,5 @@ export interface CategoryRepository {
 
 export type CategoryInput = Omit<CategoryEntity, 'id' | 'createdAt' | 'updatedAt'>;
 export type CategoryQuery = PaginationQuery;
-export type CategoryRow = CategoryEntity;
+export type CategoryRow = Pick<CategoryEntity, 'id' | 'name'> & { postsCount: number };
 export type CategoryDetail = CategoryEntity;

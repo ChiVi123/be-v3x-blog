@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, IsString, IsUUID, Max, MaxLength, Min, MinLength } from 'class-validator';
+import { IsEnum, IsInt, IsOptional, IsString, IsUUID, Max, MaxLength, Min, MinLength } from 'class-validator';
 import type { PostQuery } from '~application/repositories/post.repository';
 import type { CategoryId, ImageId, UserId } from '~domain/types/branded';
 
@@ -60,15 +60,19 @@ export class ListPostQueryDto implements PostQuery {
   @Max(100)
   limit: number;
 
-  @IsOptional()
   @IsUUID()
+  @IsOptional()
   author?: UserId;
 
-  @IsString()
+  @IsUUID()
   @IsOptional()
-  sortBy?: string;
+  category?: CategoryId;
 
-  @IsString()
+  @IsEnum(['title', 'createdAt', 'updatedAt', 'id'])
+  @IsOptional()
+  sortBy?: 'title' | 'createdAt' | 'updatedAt' | 'id';
+
+  @IsEnum(['asc', 'desc'])
   @IsOptional()
   sortOrder?: 'asc' | 'desc';
 }

@@ -1,5 +1,5 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { eq } from 'drizzle-orm';
+import { Inject, Injectable, Logger } from '@nestjs/common';
+import { count, eq, or } from 'drizzle-orm';
 import type {
   PostDetail,
   PostInput,
@@ -39,6 +39,9 @@ const QUERY_WITH = {
 
 @Injectable()
 export class DrizzlePostRepository implements PostRepository {
+  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: logger will be used in the future
+  private readonly logger = new Logger(DrizzlePostRepository.name);
+
   constructor(@Inject(DRIZZLE_DB_TOKEN) private readonly db: DrizzleDB) {}
 
   async create(post: PostInput): Promise<PostEntity> {
@@ -77,17 +80,20 @@ export class DrizzlePostRepository implements PostRepository {
   }
 
   async findAll(query: PostQuery): Promise<PostRow[]> {
-    const { page = 1, limit = 10, author } = query;
+    const { page = 1, limit = 10, author, category, sortBy = 'createdAt', sortOrder = 'desc' } = query;
     const offset = Math.max(0, (page - 1) * limit);
 
     const posts = await this.db.query.posts.findMany({
-      where: author ? { authorId: { eq: author } } : undefined,
+      where: {
+        OR: [{ authorId: { eq: author } }, { categoryId: { eq: category } }],
+      },
       limit,
       offset,
-      orderBy: (posts, { desc }) => [desc(posts.createdAt)],
+      orderBy: (posts, { desc, asc }) => (sortOrder === 'desc' ? [desc(posts[sortBy])] : [asc(posts[sortBy])]),
       columns: QUERY_ROW,
       with: QUERY_WITH,
     });
+
     return posts ?? [];
   }
 
@@ -98,5 +104,17 @@ export class DrizzlePostRepository implements PostRepository {
       with: QUERY_WITH,
     });
     return posts ?? [];
+  }
+
+  async count(query: PostQuery): Promise<number> {
+    const { author, category } = query;
+    const result = await this.db
+      .select({ count: count(posts.id) })
+      .from(posts)
+      .where(
+        or(author ? eq(posts.authorId, author) : undefined, category ? eq(posts.categoryId, category) : undefined),
+      );
+
+    return result[0].count;
   }
 }

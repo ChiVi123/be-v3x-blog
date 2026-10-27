@@ -1,7 +1,7 @@
-export type PaginationQuery = {
+export type PaginationQuery<T = Record<string, unknown>> = {
   query?: string;
   page: number;
   limit: number;
-  sortBy?: string;
+  sortBy?: keyof T;
   sortOrder?: 'asc' | 'desc';
 };

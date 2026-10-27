@@ -15,6 +15,7 @@ describe('PostFacade', () => {
     findAll: ReturnType<typeof mock>;
     update: ReturnType<typeof mock>;
     delete: ReturnType<typeof mock>;
+    count: ReturnType<typeof mock>;
   };
   let mockTransformService: { slugify: ReturnType<typeof mock> };
 
@@ -67,6 +68,7 @@ describe('PostFacade', () => {
         ...(input as object),
       })),
       delete: mock(async () => undefined),
+      count: mock(async () => 1),
     };
 
     mockTransformService = {

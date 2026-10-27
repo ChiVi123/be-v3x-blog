@@ -47,8 +47,8 @@ export class PostFacade {
   }
 
   async queryPosts(query: PostQuery) {
-    const posts = await this.postRepository.findAll(query);
-    return { data: posts, total: posts.length };
+    const [posts, total] = await Promise.all([this.postRepository.findAll(query), this.postRepository.count(query)]);
+    return { data: posts, total };
   }
 
   async getPost(id: PostId): Promise<PostEntity> {

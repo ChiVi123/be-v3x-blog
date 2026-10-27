@@ -1,6 +1,6 @@
 import type { PaginationQuery } from '~application/types/pagination';
 import type { CategoryEntity, ImageEntity, PostEntity, UserEntity } from '~domain/entities';
-import type { PostId, UserId } from '~domain/types/branded';
+import type { CategoryId, PostId, UserId } from '~domain/types/branded';
 
 export interface PostRepository {
   create(post: PostInput): Promise<PostEntity>;
@@ -13,10 +13,12 @@ export interface PostRepository {
   ): Promise<PostDetail | null>;
   findAll(query: PostQuery): Promise<PostRow[]>;
   findByUserId(userId: UserId): Promise<PostRow[]>;
+  count(query: PostQuery): Promise<number>;
 }
 
-export type PostQuery = PaginationQuery & {
+export type PostQuery = PaginationQuery<Pick<PostEntity, 'title' | 'createdAt' | 'updatedAt' | 'id'>> & {
   author?: UserId;
+  category?: CategoryId;
 };
 
 export type PostInput = Omit<PostEntity, 'id' | 'createdAt' | 'updatedAt'>;
