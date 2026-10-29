@@ -1,6 +1,10 @@
+import { Logger } from '@nestjs/common';
 import { sql } from 'drizzle-orm';
 import { PgTable } from 'drizzle-orm/pg-core';
+import slugify from 'slugify';
 import type { DrizzleDB } from '~infrastructure/database/drizzle/types';
+
+export const logger = new Logger('Seeder');
 
 export async function resetPgDatabase(db: DrizzleDB, schema: Record<string, unknown>): Promise<void> {
   const filteredSchema = Object.fromEntries(
@@ -27,29 +31,15 @@ export function randomDate(startDate: Date, endDate: Date): Date {
   return new Date(start + Math.random() * (end - start));
 }
 
-export function isDateBefore(date: Date, date2: Date): boolean {
-  return date.getTime() < date2.getTime();
-}
-
 export function random<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-export function randomParagraph(minSentences = 3, maxSentences = 7): string {
-  const sentences = [
-    'The quick brown fox jumps over the lazy dog.',
-    'Modern web applications require scalable architecture.',
-    'TypeScript helps developers write safer and more maintainable code.',
-    'Database optimization improves application performance.',
-    'Developers often use reusable components to simplify development.',
-    'Good software design makes applications easier to maintain.',
-    'Caching can reduce response times and database load.',
-    'Testing helps prevent unexpected bugs in production.',
-    'Clean code improves collaboration between team members.',
-    'Efficient algorithms can significantly reduce execution time.',
-  ];
-
-  const count = Math.floor(Math.random() * (maxSentences - minSentences + 1)) + minSentences;
-
-  return Array.from({ length: count }, () => sentences[Math.floor(Math.random() * sentences.length)]).join('\n');
+export function createSlug(text: string): string {
+  return slugify(text, {
+    locale: 'vi',
+    lower: true,
+    strict: true,
+    trim: true,
+  });
 }

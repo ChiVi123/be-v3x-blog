@@ -17,7 +17,7 @@ import { PostFacade } from '~application/facades/post.facade';
 import type { PostId, UserId } from '~domain/types/branded';
 import { CurrentUser } from '~presentation/decorators';
 // biome-ignore lint/style/useImportType: DTO class is required for NestJS ValidationPipe metadata reflection
-import { CreatePostRequest, ListPostQueryDto, UpdatePostRequest } from '~presentation/dtos/post/post.dto';
+import { CreatePostDto, ListPostQueryDto, UpdatePostDto } from '~presentation/dtos/post/post.dto';
 import { JwtAuthGuard } from '~presentation/guards';
 
 @Controller('posts')
@@ -47,7 +47,7 @@ export class PostController {
   @Post()
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.CREATED)
-  createPost(@Body() body: CreatePostRequest, @CurrentUser('id') userId: UserId) {
+  createPost(@Body() body: CreatePostDto, @CurrentUser('id') userId: UserId) {
     return this.postFacade.createPost({ ...body, authorId: userId });
   }
 
@@ -55,11 +55,11 @@ export class PostController {
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   updatePost(
-    @Param('id', new ParseUUIDPipe()) id: PostId,
-    @Body() body: UpdatePostRequest,
+    @Param('id', new ParseUUIDPipe()) postId: PostId,
+    @Body() body: UpdatePostDto,
     @CurrentUser('id') userId: UserId,
   ) {
-    return this.postFacade.updatePost({ id, authorId: userId, ...body });
+    return this.postFacade.updatePost({ id: postId, authorId: userId, ...body });
   }
 
   @Delete(':id')

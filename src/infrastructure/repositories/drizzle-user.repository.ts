@@ -4,10 +4,11 @@ import type {
   Author,
   UserCreateInput,
   UserOutput,
+  UserQuery,
   UserRepository,
   UserUpdateInput,
 } from '~application/repositories/user.repository';
-import type { UserEntity } from '~domain/entities';
+import { Role, type UserEntity } from '~domain/entities';
 import type { UserId } from '~domain/types/branded';
 import { DRIZZLE_DB_TOKEN } from '~infrastructure/config/provider-tokens';
 import { users } from '~infrastructure/database/drizzle/schema';
@@ -18,6 +19,7 @@ const RETURNING = {
   username: users.username,
   email: users.email,
   role: users.role,
+  bio: users.bio,
   avatarId: users.avatarId,
   createdAt: users.createdAt,
   updatedAt: users.updatedAt,
@@ -53,6 +55,27 @@ export class DrizzleUserRepository implements UserRepository {
       ...(includePassword ? { columns: { password: true } } : {}),
     });
     return user ?? null;
+  }
+
+  async search(query: UserQuery): Promise<UserOutput[]> {
+    const { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc' } = query;
+    const offset = Math.max(0, (page - 1) * limit);
+
+    const usersResult = await this.db.query.users.findMany({
+      where: { role: { NOT: Role.ADMIN } },
+      limit,
+      offset,
+      orderBy: (users, { desc, asc }) => (sortOrder === 'desc' ? [desc(users[sortBy])] : [asc(users[sortBy])]),
+      columns: { password: false },
+    });
+
+    return usersResult;
+  }
+
+  async count(_query: UserQuery): Promise<number> {
+    const result = await this.db.select({ count: count(users.id) }).from(users);
+
+    return result[0].count;
   }
 
   async isExist(id: UserId): Promise<boolean> {

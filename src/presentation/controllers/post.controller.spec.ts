@@ -8,7 +8,7 @@ import type { PostEntity } from '~domain/entities/post.entity';
 import type { CategoryId, ImageId, PostId, UserId } from '~domain/types/branded';
 import { AUTH_SERVICE_TOKEN } from '~infrastructure/config/provider-tokens';
 import { PostController } from '~presentation/controllers/post.controller';
-import type { CreatePostRequest } from '~presentation/dtos/post/post.dto';
+import type { CreatePostDto } from '~presentation/dtos/post/post.dto';
 import { JwtAuthGuard } from '~presentation/guards';
 
 describe('PostController', () => {
@@ -28,6 +28,7 @@ describe('PostController', () => {
     title: 'Test Post',
     slug: 'test-post',
     content: 'Valid content that has more than twenty characters.',
+    readingTime: 5,
     categoryId: 'Tech' as CategoryId,
     authorId: 'user-1' as UserId,
     thumbnailId: null as ImageId | null,
@@ -41,6 +42,7 @@ describe('PostController', () => {
     slug: 'test-post',
     createdAt: new Date('2026-01-01T00:00:00Z'),
     updatedAt: new Date('2026-01-01T00:00:00Z'),
+    readingTime: 5,
     author: null,
     category: null,
     thumbnail: null,
@@ -53,6 +55,7 @@ describe('PostController', () => {
     content: 'Valid content that has more than twenty characters.',
     createdAt: new Date('2026-01-01T00:00:00Z'),
     updatedAt: new Date('2026-01-01T00:00:00Z'),
+    readingTime: 5,
     author: null,
     category: null,
     thumbnail: null,
@@ -136,7 +139,7 @@ describe('PostController', () => {
 
   describe('createPost', () => {
     it('should attach authenticated userId and delegate to postFacade.createPost', async () => {
-      const body: CreatePostRequest = {
+      const body: CreatePostDto = {
         title: 'Test Post',
         content: 'Valid content that has more than twenty characters.',
         categoryId: 'Tech' as CategoryId,

@@ -24,6 +24,7 @@ describe('PostFacade', () => {
     title: 'Original Title',
     slug: 'original-title',
     content: 'Original content with plenty of detail.',
+    readingTime: 5,
     categoryId: 'Tech' as CategoryId,
     authorId: 'user-1' as UserId,
     thumbnailId: null as ImageId | null,
@@ -35,6 +36,7 @@ describe('PostFacade', () => {
     id: 'post-1' as PostId,
     title: 'Original Title',
     slug: 'original-title',
+    readingTime: 5,
     createdAt: new Date('2026-01-01T00:00:00Z'),
     updatedAt: new Date('2026-01-01T00:00:00Z'),
     author: null,
@@ -47,6 +49,7 @@ describe('PostFacade', () => {
     title: 'Original Title',
     slug: 'original-title',
     content: 'Original content with plenty of detail.',
+    readingTime: 5,
     createdAt: new Date('2026-01-01T00:00:00Z'),
     updatedAt: new Date('2026-01-01T00:00:00Z'),
     author: null,
@@ -85,7 +88,9 @@ describe('PostFacade', () => {
     it('should create post and slugify title', async () => {
       const result = await facade.createPost({
         title: 'New Post',
+        slug: 'new-post',
         content: 'Valid content text here...',
+        readingTime: 5,
         authorId: 'user-1' as UserId,
         categoryId: 'Tech' as CategoryId,
         thumbnailId: null,
@@ -99,6 +104,7 @@ describe('PostFacade', () => {
         categoryId: 'Tech' as CategoryId,
         thumbnailId: null,
         slug: 'new-post',
+        readingTime: 5,
       });
       expect(result.slug).toBe('new-post');
     });

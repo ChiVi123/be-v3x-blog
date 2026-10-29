@@ -46,6 +46,7 @@ describe('AuthFacade', () => {
     username: 'john_doe',
     email: 'john@example.com',
     password: 'hashed-password',
+    bio: 'john-bio',
     role: Role.USER,
     avatarId: null,
     createdAt: new Date('2026-01-01T00:00:00Z'),
@@ -144,6 +145,7 @@ describe('AuthFacade', () => {
         username: 'newuser',
         role: Role.USER,
         avatarId: null,
+        bio: null,
       });
       expect(result).toEqual({
         id: 'new-user-id' as UserId,

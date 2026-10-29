@@ -21,7 +21,7 @@ export type PostQuery = PaginationQuery<Pick<PostEntity, 'title' | 'createdAt' |
   category?: CategoryId;
 };
 
-export type PostInput = Omit<PostEntity, 'id' | 'createdAt' | 'updatedAt'>;
+export type PostInput = Omit<PostEntity, 'id' | 'readingTime' | 'createdAt' | 'updatedAt'>;
 export type PostUpdateInput = Partial<Omit<PostEntity, 'id' | 'createdAt' | 'updatedAt' | 'authorId'>>;
 export type PostRow = Omit<PostEntity, 'authorId' | 'thumbnailId' | 'categoryId' | 'content'> & {
   author: Omit<UserEntity, 'password'> | null;

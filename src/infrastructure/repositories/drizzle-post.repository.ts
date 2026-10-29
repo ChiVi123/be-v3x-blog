@@ -14,17 +14,7 @@ import { DRIZZLE_DB_TOKEN } from '~infrastructure/config/provider-tokens';
 import { posts } from '~infrastructure/database/drizzle/schema';
 import type { DrizzleDB } from '~infrastructure/database/drizzle/types';
 
-const RETURNING_DETAILS = {
-  id: posts.id,
-  title: posts.title,
-  slug: posts.slug,
-  content: posts.content,
-  categoryId: posts.categoryId,
-  authorId: posts.authorId,
-  thumbnailId: posts.thumbnailId,
-  createdAt: posts.createdAt,
-  updatedAt: posts.updatedAt,
-};
+const TIME_WEIGHT = 200; // words per minute
 const QUERY_ROW = { authorId: false, categoryId: false, thumbnailId: false, content: false } as const;
 const QUERY_DETAIL = { authorId: false, categoryId: false, thumbnailId: false } as const;
 const QUERY_WITH = {
@@ -45,7 +35,10 @@ export class DrizzlePostRepository implements PostRepository {
   constructor(@Inject(DRIZZLE_DB_TOKEN) private readonly db: DrizzleDB) {}
 
   async create(post: PostInput): Promise<PostEntity> {
-    const [result] = await this.db.insert(posts).values(post).returning(RETURNING_DETAILS);
+    const [result] = await this.db
+      .insert(posts)
+      .values({ ...post, readingTime: post.content.length / TIME_WEIGHT })
+      .returning();
     return result;
   }
 
@@ -54,7 +47,7 @@ export class DrizzlePostRepository implements PostRepository {
       .update(posts)
       .set({ ...post, updatedAt: new Date() })
       .where(eq(posts.id, id))
-      .returning(RETURNING_DETAILS);
+      .returning();
     return result;
   }
 
@@ -83,7 +76,7 @@ export class DrizzlePostRepository implements PostRepository {
     const { page = 1, limit = 10, author, category, sortBy = 'createdAt', sortOrder = 'desc' } = query;
     const offset = Math.max(0, (page - 1) * limit);
 
-    const posts = await this.db.query.posts.findMany({
+    const postsResult = await this.db.query.posts.findMany({
       where: {
         OR: [{ authorId: { eq: author } }, { categoryId: { eq: category } }],
       },
@@ -94,7 +87,7 @@ export class DrizzlePostRepository implements PostRepository {
       with: QUERY_WITH,
     });
 
-    return posts ?? [];
+    return postsResult;
   }
 
   async findByUserId(userId: UserId): Promise<PostRow[]> {

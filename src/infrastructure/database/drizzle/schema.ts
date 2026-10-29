@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { index, jsonb, pgEnum, pgTable, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
+import { index, integer, jsonb, pgEnum, pgTable, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
 import type { ImageMetadata } from '~domain/entities/image.entity';
 import { Role } from '~domain/entities/user.entity';
 import type { CategoryId, CommentId, ImageId, PostId, SessionId, UserId } from '~domain/types/branded';
@@ -32,6 +32,7 @@ export const users = pgTable('users', {
   email: varchar('email', { length: 255 }).notNull().unique(),
   password: text('password').notNull(),
   role: userRoleEnum('role').default(Role.USER).notNull(),
+  bio: varchar('bio', { length: 500 }),
   avatarId: uuid('avatar_id')
     .references(() => images.id, { onDelete: 'set null' })
     .$type<ImageId>(),
@@ -71,6 +72,7 @@ export const posts = pgTable(
     title: varchar('title', { length: 255 }).notNull(),
     slug: varchar('slug', { length: 255 }).notNull().unique(),
     content: text('content').notNull(),
+    readingTime: integer('reading_time').notNull(),
     categoryId: uuid('category_id')
       .notNull()
       .references(() => categories.id, { onDelete: 'cascade' })

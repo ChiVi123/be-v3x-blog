@@ -8,6 +8,8 @@ export class TransformServiceImpl implements TransformService {
     return slugifyLib(text, {
       lower: true,
       strict: true,
+      trim: true,
+      locale: 'vi',
     });
   }
 }

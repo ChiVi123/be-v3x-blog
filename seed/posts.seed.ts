@@ -1,37 +1,47 @@
-import { count } from 'drizzle-orm';
-import { random, randomDate, randomParagraph } from 'seed/utils';
-import slugify from 'slugify';
+import { createSlug, random, randomDate } from 'seed/utils';
+import type { CategoryId, ImageId, UserId } from '~domain/types/branded';
 import { posts } from '~infrastructure/database/drizzle/schema';
-import type { DrizzleDB, PostInput } from '~infrastructure/database/drizzle/types';
-import data from './data/posts';
+import type { DrizzleDB } from '~infrastructure/database/drizzle/types';
 
-export async function postsSeed(db: DrizzleDB) {
-  const [categories, users] = await Promise.all([
-    db.query.categories.findMany({ columns: { id: true } }),
-    db.query.users.findMany({ columns: { id: true } }),
-  ]);
+export type PostSeedData = {
+  title: string;
+  content: string;
+  readingTime: number;
+  authorId: UserId;
+  categoryId: CategoryId;
+  thumbnailId?: ImageId;
+};
 
-  if (categories.length === 0 || users.length === 0) {
-    throw new Error('Categories or users not found');
-  }
+type DbExecutor = DrizzleDB | Parameters<Parameters<DrizzleDB['transaction']>[0]>[0];
 
-  const dataSeeded = data.map<PostInput>((post) => {
-    const dateNow = new Date();
-    const createAt = randomDate(new Date('2025-01-01'), dateNow);
+export async function batchPostSeeding(db: DbExecutor, dataList: PostSeedData[], chunkSize = 100) {
+  if (dataList.length === 0) return;
+  const now = new Date();
 
+  const seenSlugs = new Set<string>();
+  const values = dataList.map((item) => {
+    let slug = createSlug(item.title);
+    if (seenSlugs.has(slug)) {
+      slug = `${slug}-${Math.random().toString(36).substring(2, 7)}`;
+    }
+    seenSlugs.add(slug);
+
+    const createdAt = randomDate(new Date('2025-01-01'), now);
     return {
-      title: post,
-      slug: slugify(post),
-      content: randomParagraph(4, 10),
-      categoryId: random(categories).id,
-      authorId: random(users).id,
-      createdAt: createAt,
-      updatedAt: random([undefined, randomDate(createAt, dateNow)]),
+      title: item.title,
+      slug,
+      content: item.content,
+      readingTime: item.readingTime,
+      authorId: item.authorId,
+      categoryId: item.categoryId,
+      thumbnailId: item.thumbnailId,
+      createdAt,
+      updatedAt: random([undefined, randomDate(createdAt, now)]),
     };
   });
 
-  await db.insert(posts).values(dataSeeded);
-
-  const postCount = await db.select({ value: count() }).from(posts);
-  console.log(`Post count: ${postCount[0].value}`);
+  for (let i = 0; i < values.length; i += chunkSize) {
+    const chunk = values.slice(i, i + chunkSize);
+    await db.insert(posts).values(chunk).onConflictDoNothing();
+  }
 }

@@ -5,6 +5,7 @@ export interface PostEntity extends BaseEntity<PostId> {
   title: string;
   slug: string;
   content: string;
+  readingTime: number;
   categoryId: CategoryId;
   authorId: UserId;
   thumbnailId: ImageId | null;

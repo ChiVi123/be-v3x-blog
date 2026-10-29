@@ -11,5 +11,6 @@ export interface UserEntity extends BaseEntity<UserId> {
   email: string;
   password: string;
   role: Role;
+  bio: string | null;
   avatarId: ImageId | null;
 }

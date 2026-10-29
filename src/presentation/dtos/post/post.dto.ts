@@ -1,9 +1,10 @@
 import { Type } from 'class-transformer';
 import { IsEnum, IsInt, IsOptional, IsString, IsUUID, Max, MaxLength, Min, MinLength } from 'class-validator';
+import type { CreatePostParams, UpdatePostParams } from '~application/facades';
 import type { PostQuery } from '~application/repositories/post.repository';
 import type { CategoryId, ImageId, UserId } from '~domain/types/branded';
 
-export class CreatePostRequest {
+export class CreatePostDto implements Omit<CreatePostParams, 'authorId'> {
   @IsString()
   @MinLength(5)
   @MaxLength(255)
@@ -22,7 +23,7 @@ export class CreatePostRequest {
   thumbnailId: ImageId | null;
 }
 
-export class UpdatePostRequest {
+export class UpdatePostDto implements Omit<UpdatePostParams, 'id' | 'authorId'> {
   @IsString()
   @MinLength(5)
   @MaxLength(255)

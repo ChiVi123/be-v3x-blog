@@ -94,6 +94,7 @@ export class AuthFacade {
       password: hashedPassword,
       username,
       role,
+      bio: null,
       avatarId: null,
     });
 

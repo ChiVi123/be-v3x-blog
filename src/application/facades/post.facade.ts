@@ -1,24 +1,14 @@
-import type { PostQuery, PostRepository, PostUpdateInput } from '~application/repositories/post.repository';
+import type { PostInput, PostQuery, PostRepository, PostUpdateInput } from '~application/repositories/post.repository';
 import type { TransformService } from '~application/services/transform.service';
 import type { PostEntity } from '~domain/entities/post.entity';
 import { EntityNotFoundException, ForbiddenException } from '~domain/exceptions';
-import type { CategoryId, ImageId, PostId, UserId } from '~domain/types/branded';
+import type { PostId, UserId } from '~domain/types/branded';
 
-export type CreatePostParams = {
-  title: string;
-  content: string;
-  authorId: UserId;
-  categoryId: CategoryId;
-  thumbnailId: ImageId | null;
-};
+export type CreatePostParams = Omit<PostInput, 'slug'>;
 
-export type UpdatePostParams = {
+export type UpdatePostParams = PostUpdateInput & {
   id: PostId;
   authorId: UserId;
-  title?: string;
-  content?: string;
-  category?: string;
-  thumbnailId?: ImageId | null;
 };
 
 export type DeletePostParams = {
