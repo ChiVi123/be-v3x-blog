@@ -1,13 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { plainToInstance } from 'class-transformer';
+import { plainToInstance, Transform } from 'class-transformer';
 import {
+  IsBoolean,
   IsEnum,
   IsNotEmpty,
   IsOptional,
   IsPort,
   IsString,
-  IsUrl,
   registerDecorator,
   type ValidationArguments,
   type ValidationOptions,
@@ -48,8 +48,35 @@ function IsMsValue(validationOptions?: ValidationOptions) {
   };
 }
 
+function IsDatabaseUrl(validationOptions?: ValidationOptions) {
+  return (object: object, propertyName: string) => {
+    registerDecorator({
+      name: 'isDatabaseUrl',
+      target: object.constructor,
+      propertyName: propertyName,
+      options: validationOptions,
+      validator: {
+        validate(value: unknown) {
+          if (typeof value !== 'string' || value.trim().length === 0) {
+            return false;
+          }
+          try {
+            const parsed = new URL(value);
+            return (parsed.protocol === 'postgres:' || parsed.protocol === 'postgresql:') && Boolean(parsed.hostname);
+          } catch {
+            return false;
+          }
+        },
+        defaultMessage(args: ValidationArguments) {
+          return `${args.property} must be a valid PostgreSQL connection URL (e.g. "postgresql://user:pass@host:5432/db")`;
+        },
+      },
+    });
+  };
+}
+
 export class Environment {
-  @IsUrl({ protocols: ['postgres', 'postgresql'], require_tld: false })
+  @IsDatabaseUrl()
   DB_URL: string;
 
   @IsOptional()
@@ -74,6 +101,19 @@ export class Environment {
   @IsOptional()
   @IsString()
   CORS_ORIGINS?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => {
+    if (value === undefined || value === null || value === '') return true;
+    if (typeof value === 'boolean') return value;
+    return value !== 'false' && value !== '0';
+  })
+  AUTO_MIGRATE: boolean | string = true;
+
+  @IsOptional()
+  @IsString()
+  MIGRATIONS_FOLDER?: string;
 }
 
 @Injectable()

@@ -59,6 +59,7 @@ ENV PORT=4000
 COPY package.json ./
 COPY --from=production-deps /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
+COPY drizzle ./drizzle
 
 USER node
 

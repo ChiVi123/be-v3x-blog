@@ -20,6 +20,7 @@
     "test:e2e:debug": "bun test test/e2e --inspect-brk",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
+    "db:migrate:prod": "node dist/src/migrate.js",
     "db:studio": "drizzle-kit studio",
     "db:seed": "bun seed"
   },

@@ -17,6 +17,15 @@ describe('validateEnvironment', () => {
     ).not.toThrow();
   });
 
+  it('should pass with a docker postgres URL containing special characters like @ in password', () => {
+    expect(() =>
+      validateEnvironment({
+        DB_URL: 'postgresql://v3x-blog:bP@ssw0rd@postgres-db:5432/v3x_blog_db',
+        JWT_SECRET: JWT_SECRET_VALID,
+      }),
+    ).not.toThrow();
+  });
+
   it('should fail when missing JWT_SECRET', () => {
     expect(() =>
       validateEnvironment({
@@ -156,5 +165,31 @@ describe('validateEnvironment', () => {
         ACCESS_TOKEN_EXPIRY: 'invalid-expiry-value',
       }),
     ).toThrow();
+  });
+
+  it('should default AUTO_MIGRATE to true when not provided', () => {
+    const validated = validateEnvironment({
+      DB_URL: DB_URL_VALID,
+      JWT_SECRET: JWT_SECRET_VALID,
+    });
+    expect(validated.AUTO_MIGRATE).toBe(true);
+  });
+
+  it('should parse AUTO_MIGRATE string "false" as boolean false', () => {
+    const validated = validateEnvironment({
+      DB_URL: DB_URL_VALID,
+      JWT_SECRET: JWT_SECRET_VALID,
+      AUTO_MIGRATE: 'false',
+    });
+    expect(validated.AUTO_MIGRATE).toBe(false);
+  });
+
+  it('should parse optional MIGRATIONS_FOLDER', () => {
+    const validated = validateEnvironment({
+      DB_URL: DB_URL_VALID,
+      JWT_SECRET: JWT_SECRET_VALID,
+      MIGRATIONS_FOLDER: 'custom-drizzle',
+    });
+    expect(validated.MIGRATIONS_FOLDER).toBe('custom-drizzle');
   });
 });
