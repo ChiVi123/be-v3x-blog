@@ -52,7 +52,7 @@ export class DrizzleUserRepository implements UserRepository {
   async findByEmail(email: string, includePassword?: boolean): Promise<UserEntity | Author | null> {
     const user = await this.db.query.users.findFirst({
       where: { email: { eq: email } },
-      ...(includePassword ? { columns: { password: true } } : {}),
+      ...(includePassword ? {} : { columns: { password: false } }),
     });
     return user ?? null;
   }

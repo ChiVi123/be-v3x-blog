@@ -41,6 +41,7 @@ describe('UserRepository Integration Tests', () => {
         password: 'hashed-password-1',
         role: Role.USER,
         avatarId: null,
+        bio: '',
       });
 
       expect(result).toBeDefined();
@@ -65,6 +66,7 @@ describe('UserRepository Integration Tests', () => {
           password: 'password',
           role: Role.USER,
           avatarId: null,
+          bio: '',
         }),
       ).rejects.toThrow();
     });
@@ -77,6 +79,7 @@ describe('UserRepository Integration Tests', () => {
           password: 'password',
           role: Role.USER,
           avatarId: null,
+          bio: '',
         }),
       ).rejects.toThrow();
     });
@@ -84,7 +87,7 @@ describe('UserRepository Integration Tests', () => {
 
   describe('findByEmail', () => {
     it('should get user by email with full UserEntity including password', async () => {
-      const result = await userRepository.findByEmail('test-1@gmail.com');
+      const result = await userRepository.findByEmail('test-1@gmail.com', true);
 
       expect(result).toBeDefined();
       expect(result?.id).toBe(createdUserId);
@@ -111,7 +114,6 @@ describe('UserRepository Integration Tests', () => {
       expect(result?.id).toBe(createdUserId);
       expect(result?.username).toBe('test-1');
       expect(result?.email).toBe('test-1@gmail.com');
-      expect(result?.password).toBe('hashed-password-1');
       expect(result?.role).toBe(Role.USER);
     });
 
@@ -157,6 +159,7 @@ describe('UserRepository Integration Tests', () => {
         password: 'password',
         role: Role.USER,
         avatarId: null,
+        bio: '',
       });
 
       await userRepository.delete(tempUser.id);
