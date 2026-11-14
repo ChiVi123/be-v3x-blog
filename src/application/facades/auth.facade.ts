@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import type { SessionRepository } from '~application/repositories/session.repository';
 import type { UserRepository } from '~application/repositories/user.repository';
 import type { AuthService } from '~application/services/auth.service';
@@ -43,6 +44,9 @@ export type RefreshResult = {
 };
 
 export class AuthFacade {
+  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: logger will be used in the future
+  private readonly logger = new Logger(AuthFacade.name);
+
   constructor(
     private readonly userRepository: UserRepository,
     private readonly sessionRepository: SessionRepository,

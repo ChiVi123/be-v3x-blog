@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Inject, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Inject, Logger, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import type { CookieOptions, Request, Response } from 'express';
 // biome-ignore lint/style/useImportType: Facade class is required for NestJS DI reflection
@@ -21,7 +21,8 @@ const ONE_HOUR_MS = 60 * ONE_MINUTE_MS;
 
 @Controller('auth')
 export class AuthController {
-  // private readonly logger = new Logger(AuthController.name);
+  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: logger will be used in the future
+  private readonly logger = new Logger(AuthController.name);
 
   constructor(
     private readonly authFacade: AuthFacade,
