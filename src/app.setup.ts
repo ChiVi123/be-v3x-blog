@@ -12,14 +12,19 @@ function getCorsOrigins(value: string | undefined): string[] {
 }
 
 export function configureApplication(app: INestApplication, config: AppConfigService): void {
-  const corsOrigins = getCorsOrigins(config.get('CORS_ORIGINS'));
-
+  app.getHttpAdapter().getInstance().set('trust proxy', 'loopback, linklocal, uniquelocal');
   app.use(cookieParser());
+
+  const corsOrigins = getCorsOrigins(config.get('CORS_ORIGINS'));
 
   if (corsOrigins.length > 0) {
     app.enableCors({
       origin: corsOrigins,
       credentials: true,
+      methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization'],
+      exposedHeaders: ['Retry-After', 'X-RateLimit-Remaining'],
+      maxAge: 600,
     });
   }
 

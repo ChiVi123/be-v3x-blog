@@ -3,6 +3,8 @@
     "cisvix",
     "dtos",
     "gitv",
-    "pglite"
+    "linklocal",
+    "pglite",
+    "uniquelocal"
   ]
 }
