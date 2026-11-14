@@ -192,4 +192,68 @@ describe('validateEnvironment', () => {
     });
     expect(validated.MIGRATIONS_FOLDER).toBe('custom-drizzle');
   });
+
+  describe('CORS_ORIGINS', () => {
+    const base = { DB_URL: DB_URL_VALID, JWT_SECRET: JWT_SECRET_VALID };
+
+    it('should pass when CORS_ORIGINS is not provided', () => {
+      expect(() => validateEnvironment(base)).not.toThrow();
+    });
+
+    it('should pass with an empty CORS_ORIGINS', () => {
+      expect(() => validateEnvironment({ ...base, CORS_ORIGINS: '' })).not.toThrow();
+    });
+
+    it('should pass with a single origin', () => {
+      expect(() => validateEnvironment({ ...base, CORS_ORIGINS: 'https://tap.blog' })).not.toThrow();
+    });
+
+    it('should pass with multiple origins, ports and surrounding spaces', () => {
+      expect(() =>
+        validateEnvironment({
+          ...base,
+          CORS_ORIGINS: 'http://localhost:3000, https://tap.blog , https://admin.tap.blog:8443',
+        }),
+      ).not.toThrow();
+    });
+
+    it('should fail with a wildcard', () => {
+      expect(() => validateEnvironment({ ...base, CORS_ORIGINS: '*' })).toThrow();
+    });
+
+    it('should fail with a trailing slash', () => {
+      expect(() => validateEnvironment({ ...base, CORS_ORIGINS: 'https://tap.blog/' })).toThrow();
+    });
+
+    it('should fail when an origin contains a path, query or hash', () => {
+      expect(() => validateEnvironment({ ...base, CORS_ORIGINS: 'https://tap.blog/admin' })).toThrow();
+      expect(() => validateEnvironment({ ...base, CORS_ORIGINS: 'https://tap.blog?x=1' })).toThrow();
+      expect(() => validateEnvironment({ ...base, CORS_ORIGINS: 'https://tap.blog#top' })).toThrow();
+    });
+
+    it('should fail without a scheme', () => {
+      expect(() => validateEnvironment({ ...base, CORS_ORIGINS: 'tap.blog' })).toThrow();
+    });
+
+    it('should fail with a non-http scheme', () => {
+      expect(() => validateEnvironment({ ...base, CORS_ORIGINS: 'ftp://tap.blog' })).toThrow();
+    });
+
+    it('should fail with an uppercase host or an explicit default port', () => {
+      expect(() => validateEnvironment({ ...base, CORS_ORIGINS: 'https://TAP.blog' })).toThrow();
+      expect(() => validateEnvironment({ ...base, CORS_ORIGINS: 'https://tap.blog:443' })).toThrow();
+    });
+
+    it('should fail when only one origin in the list is invalid', () => {
+      expect(() =>
+        validateEnvironment({ ...base, CORS_ORIGINS: 'https://tap.blog,https://admin.tap.blog/' }),
+      ).toThrow();
+    });
+
+    it('should include the reason in the error message', () => {
+      expect(() => validateEnvironment({ ...base, CORS_ORIGINS: 'https://tap.blog/' })).toThrow(
+        /must not end with "\/"/,
+      );
+    });
+  });
 });

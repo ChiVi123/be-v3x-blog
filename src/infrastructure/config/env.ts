@@ -75,6 +75,72 @@ function IsDatabaseUrl(validationOptions?: ValidationOptions) {
   };
 }
 
+/**
+ * Returns a human-readable reason when `origin` is not a valid CORS origin,
+ * or `null` when it is valid. A valid origin is exactly what browsers send
+ * in the `Origin` header: scheme + host (+ non-default port), nothing else.
+ */
+function getCorsOriginError(origin: string): string | null {
+  if (origin === '*') {
+    return '"*" is not allowed (credentials are enabled), list each origin explicitly';
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(origin);
+  } catch {
+    return `"${origin}" is not a valid URL`;
+  }
+
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    return `"${origin}" must use http or https`;
+  }
+
+  if (origin.endsWith('/')) {
+    return `"${origin}" must not end with "/"`;
+  }
+
+  // origin is normalized by URL (lowercase host, default port removed, no path/query/hash).
+  // If it differs from the input, the input would never match a browser's Origin header.
+  if (parsed.origin !== origin) {
+    return `"${origin}" must be a bare origin (scheme://host[:port]), expected "${parsed.origin}"`;
+  }
+
+  return null;
+}
+
+function IsCorsOrigins(validationOptions?: ValidationOptions) {
+  return (object: object, propertyName: string) => {
+    registerDecorator({
+      name: 'isCorsOrigins',
+      target: object.constructor,
+      propertyName: propertyName,
+      options: validationOptions,
+      validator: {
+        validate(value: unknown) {
+          if (typeof value !== 'string') {
+            return false;
+          }
+          // An empty value means "CORS disabled" (see getCorsOrigins in app.setup.ts).
+          if (value.trim().length === 0) {
+            return true;
+          }
+          return value.split(',').every((item) => getCorsOriginError(item.trim()) === null);
+        },
+        defaultMessage(args: ValidationArguments) {
+          const value = typeof args.value === 'string' ? args.value : '';
+          const reasons = value
+            .split(',')
+            .map((item) => getCorsOriginError(item.trim()))
+            .filter((reason): reason is string => reason !== null);
+          const detail = reasons.length > 0 ? `: ${reasons.join('; ')}` : '';
+          return `${args.property} must be a comma-separated list of origins (e.g. "https://tap.blog,https://admin.tap.blog")${detail}`;
+        },
+      },
+    });
+  };
+}
+
 export class Environment {
   @IsDatabaseUrl()
   DB_URL: string;
@@ -100,6 +166,7 @@ export class Environment {
 
   @IsOptional()
   @IsString()
+  @IsCorsOrigins()
   CORS_ORIGINS?: string;
 
   @IsOptional()
@@ -129,7 +196,11 @@ export function validateEnvironment(env: Record<string, unknown>) {
   });
   const errors = validateSync(instance);
   if (errors.length > 0) {
-    throw new Error(errors.toString());
+    const details = errors
+      .flatMap((error) => Object.values(error.constraints ?? {}))
+      .map((message) => ` - ${message}`)
+      .join('\n');
+    throw new Error(`Invalid environment variables:\n${details}`);
   }
   return instance;
 }
