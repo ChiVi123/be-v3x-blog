@@ -1,5 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { count, eq, or } from 'drizzle-orm';
+import { and, count, eq } from 'drizzle-orm';
 import type {
   PostDetail,
   PostInput,
@@ -14,7 +14,7 @@ import { DRIZZLE_DB_TOKEN } from '~infrastructure/config/provider-tokens';
 import { posts } from '~infrastructure/database/drizzle/schema';
 import type { DrizzleDB } from '~infrastructure/database/drizzle/types';
 
-const TIME_WEIGHT = 200; // words per minute
+const WORDS_PER_MINUTE = 200;
 const QUERY_ROW = { authorId: false, categoryId: false, thumbnailId: false, content: false } as const;
 const QUERY_DETAIL = { authorId: false, categoryId: false, thumbnailId: false } as const;
 const QUERY_WITH = {
@@ -27,6 +27,19 @@ const QUERY_WITH = {
   thumbnail: true,
 } as const;
 
+function calcReadingTime(content: string): number {
+  const words = content.trim().split(/\s+/).filter(Boolean).length;
+  return Math.max(1, Math.ceil(words / WORDS_PER_MINUTE));
+}
+
+// Chỉ thêm điều kiện khi có giá trị, các điều kiện kết hợp bằng AND
+function buildPostFilter({ author, category }: Pick<PostQuery, 'author' | 'category'>) {
+  return {
+    ...(author ? { authorId: { eq: author } } : {}),
+    ...(category ? { categoryId: { eq: category } } : {}),
+  };
+}
+
 @Injectable()
 export class DrizzlePostRepository implements PostRepository {
   // biome-ignore lint/correctness/noUnusedPrivateClassMembers: logger will be used in the future
@@ -37,7 +50,7 @@ export class DrizzlePostRepository implements PostRepository {
   async create(post: PostInput): Promise<PostEntity> {
     const [result] = await this.db
       .insert(posts)
-      .values({ ...post, readingTime: post.content.length / TIME_WEIGHT })
+      .values({ ...post, readingTime: calcReadingTime(post.content) })
       .returning();
     return result;
   }
@@ -45,7 +58,11 @@ export class DrizzlePostRepository implements PostRepository {
   async update(id: PostId, post: PostUpdateInput): Promise<PostEntity> {
     const [result] = await this.db
       .update(posts)
-      .set({ ...post, updatedAt: new Date() })
+      .set({
+        ...post,
+        ...(post.content !== undefined ? { readingTime: calcReadingTime(post.content) } : {}),
+        updatedAt: new Date(),
+      })
       .where(eq(posts.id, id))
       .returning();
     return result;
@@ -77,9 +94,7 @@ export class DrizzlePostRepository implements PostRepository {
     const offset = Math.max(0, (page - 1) * limit);
 
     const postsResult = await this.db.query.posts.findMany({
-      where: {
-        OR: [{ authorId: { eq: author } }, { categoryId: { eq: category } }],
-      },
+      where: buildPostFilter({ author, category }),
       limit,
       offset,
       orderBy: (posts, { desc, asc }) => (sortOrder === 'desc' ? [desc(posts[sortBy])] : [asc(posts[sortBy])]),
@@ -105,7 +120,7 @@ export class DrizzlePostRepository implements PostRepository {
       .select({ count: count(posts.id) })
       .from(posts)
       .where(
-        or(author ? eq(posts.authorId, author) : undefined, category ? eq(posts.categoryId, category) : undefined),
+        and(author ? eq(posts.authorId, author) : undefined, category ? eq(posts.categoryId, category) : undefined),
       );
 
     return result[0].count;

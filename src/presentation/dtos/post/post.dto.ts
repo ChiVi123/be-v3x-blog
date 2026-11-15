@@ -12,7 +12,7 @@ export class CreatePostDto implements Omit<CreatePostParams, 'authorId'> {
 
   @IsString()
   @MinLength(20)
-  @MaxLength(2550)
+  @MaxLength(50_000)
   content: string;
 
   @IsUUID()
@@ -32,7 +32,7 @@ export class UpdatePostDto implements Omit<UpdatePostParams, 'id' | 'authorId'> 
 
   @IsString()
   @MinLength(20)
-  @MaxLength(2550)
+  @MaxLength(50_000)
   @IsOptional()
   content?: string;
 
