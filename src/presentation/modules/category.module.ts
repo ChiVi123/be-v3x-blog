@@ -1,15 +1,22 @@
 import { Module } from '@nestjs/common';
 import { CategoryFacade } from '~application/facades/category.facade';
 import type { CategoryRepository } from '~application/repositories/category.repository';
-import { CATEGORY_REPOSITORY_TOKEN } from '~infrastructure/config/provider-tokens';
+import type { PostRepository } from '~application/repositories/post.repository';
+import type { TransformService } from '~application/services/transform.service';
+import {
+  CATEGORY_REPOSITORY_TOKEN,
+  POST_REPOSITORY_TOKEN,
+  TRANSFORM_SERVICE_TOKEN,
+} from '~infrastructure/config/provider-tokens';
 import { CategoryController } from '~presentation/controllers/category.controller';
 
 @Module({
   providers: [
     {
       provide: CategoryFacade,
-      useFactory: (categoryRepo: CategoryRepository) => new CategoryFacade(categoryRepo),
-      inject: [CATEGORY_REPOSITORY_TOKEN],
+      useFactory: (categoryRepo: CategoryRepository, postRepo: PostRepository, transformService: TransformService) =>
+        new CategoryFacade(categoryRepo, postRepo, transformService),
+      inject: [CATEGORY_REPOSITORY_TOKEN, POST_REPOSITORY_TOKEN, TRANSFORM_SERVICE_TOKEN],
     },
   ],
   controllers: [CategoryController],
