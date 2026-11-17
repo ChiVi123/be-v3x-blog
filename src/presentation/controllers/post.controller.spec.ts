@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import { Test, type TestingModule } from '@nestjs/testing';
 import { PostFacade } from '~application/facades/post.facade';
 import type { PostDetail, PostRow } from '~application/repositories/post.repository';
+import { Role } from '~domain/entities';
 import type { PostEntity } from '~domain/entities/post.entity';
 import type { CategoryId, ImageId, PostId, UserId } from '~domain/types/branded';
 import { AUTH_SERVICE_TOKEN } from '~infrastructure/config/provider-tokens';
@@ -163,12 +164,13 @@ describe('PostController', () => {
       const userId = 'user-1' as UserId;
       const body = { title: 'Updated Title' };
 
-      const result = await controller.updatePost(postId, body, userId);
+      const result = await controller.updatePost(postId, body, userId, Role.ADMIN);
 
       expect(mockPostFacade.updatePost).toHaveBeenCalledWith({
         id: postId,
         authorId: userId,
         ...body,
+        requesterRole: Role.ADMIN,
       });
       expect(result.title).toBe('Updated Title');
     });
@@ -179,11 +181,12 @@ describe('PostController', () => {
       const postId = 'post-1' as PostId;
       const userId = 'user-1' as UserId;
 
-      await controller.deletePost(postId, userId);
+      await controller.deletePost(postId, userId, Role.USER);
 
       expect(mockPostFacade.deletePost).toHaveBeenCalledWith({
         id: postId,
         authorId: userId,
+        requesterRole: Role.USER,
       });
     });
   });

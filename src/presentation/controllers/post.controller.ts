@@ -14,6 +14,7 @@ import {
 } from '@nestjs/common';
 // biome-ignore lint/style/useImportType: Facade class is required for NestJS DI reflection
 import { PostFacade } from '~application/facades/post.facade';
+import type { Role } from '~domain/entities';
 import type { PostId, UserId } from '~domain/types/branded';
 import { CurrentUser } from '~presentation/decorators';
 // biome-ignore lint/style/useImportType: DTO class is required for NestJS ValidationPipe metadata reflection
@@ -58,14 +59,19 @@ export class PostController {
     @Param('id', new ParseUUIDPipe()) postId: PostId,
     @Body() body: UpdatePostDto,
     @CurrentUser('id') userId: UserId,
+    @CurrentUser('role') role: Role,
   ) {
-    return this.postFacade.updatePost({ id: postId, authorId: userId, ...body });
+    return this.postFacade.updatePost({ id: postId, authorId: userId, ...body, requesterRole: role });
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
-  async deletePost(@Param('id', new ParseUUIDPipe()) id: PostId, @CurrentUser('id') userId: UserId) {
-    await this.postFacade.deletePost({ id, authorId: userId });
+  async deletePost(
+    @Param('id', new ParseUUIDPipe()) id: PostId,
+    @CurrentUser('id') userId: UserId,
+    @CurrentUser('role') role: Role,
+  ) {
+    await this.postFacade.deletePost({ id, authorId: userId, requesterRole: role });
   }
 }

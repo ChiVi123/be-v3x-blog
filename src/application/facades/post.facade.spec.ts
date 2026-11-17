@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import type { PostDetail, PostRepository, PostRow } from '~application/repositories/post.repository';
 import type { TransformService } from '~application/services/transform.service';
 import type { PostEntity } from '~domain/entities/post.entity';
+import { Role } from '~domain/entities/user.entity';
 import { EntityNotFoundException, ForbiddenException } from '~domain/exceptions';
 import type { CategoryId, ImageId, PostId, UserId } from '~domain/types/branded';
 import { PostFacade } from './post.facade';
@@ -88,9 +89,7 @@ describe('PostFacade', () => {
     it('should create post and slugify title', async () => {
       const result = await facade.createPost({
         title: 'New Post',
-        slug: 'new-post',
         content: 'Valid content text here...',
-        readingTime: 5,
         authorId: 'user-1' as UserId,
         categoryId: 'Tech' as CategoryId,
         thumbnailId: null,
@@ -99,12 +98,11 @@ describe('PostFacade', () => {
       expect(mockTransformService.slugify).toHaveBeenCalledWith('New Post');
       expect(mockPostRepository.create).toHaveBeenCalledWith({
         title: 'New Post',
+        slug: 'new-post',
         content: 'Valid content text here...',
         authorId: 'user-1' as UserId,
         categoryId: 'Tech' as CategoryId,
         thumbnailId: null,
-        slug: 'new-post',
-        readingTime: 5,
       });
       expect(result.slug).toBe('new-post');
     });
@@ -220,6 +218,31 @@ describe('PostFacade', () => {
         }),
       ).rejects.toThrow(ForbiddenException);
     });
+
+    it('should allow an admin to update a post written by another user', async () => {
+      const result = await facade.updatePost({
+        id: 'post-1' as PostId,
+        authorId: 'admin-user' as UserId,
+        requesterRole: Role.ADMIN,
+        content: 'Moderated content here.',
+      });
+
+      expect(mockPostRepository.update).toHaveBeenCalledWith('post-1' as PostId, {
+        content: 'Moderated content here.',
+      });
+      expect(result.content).toBe('Moderated content here.');
+    });
+
+    it('should not let a regular user bypass the author check', async () => {
+      expect(
+        facade.updatePost({
+          id: 'post-1' as PostId,
+          authorId: 'different-user' as UserId,
+          requesterRole: Role.USER,
+          title: 'Title',
+        }),
+      ).rejects.toThrow(ForbiddenException);
+    });
   });
 
   describe('deletePost', () => {
@@ -251,6 +274,16 @@ describe('PostFacade', () => {
           authorId: 'intruder' as UserId,
         }),
       ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should allow an admin to delete a post written by another user', async () => {
+      await facade.deletePost({
+        id: 'post-1' as PostId,
+        authorId: 'admin-user' as UserId,
+        requesterRole: Role.ADMIN,
+      });
+
+      expect(mockPostRepository.delete).toHaveBeenCalledWith('post-1' as PostId);
     });
   });
 });
