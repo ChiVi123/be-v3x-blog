@@ -181,6 +181,22 @@ export class Environment {
   @IsOptional()
   @IsString()
   MIGRATIONS_FOLDER?: string;
+
+  @IsOptional()
+  @IsString()
+  CLOUDINARY_CLOUD_NAME?: string;
+
+  @IsOptional()
+  @IsString()
+  CLOUDINARY_API_KEY?: string;
+
+  @IsOptional()
+  @IsString()
+  CLOUDINARY_API_SECRET?: string;
+
+  @IsOptional()
+  @IsString()
+  CLOUDINARY_FOLDER: string = 'tap-blog';
 }
 
 @Injectable()

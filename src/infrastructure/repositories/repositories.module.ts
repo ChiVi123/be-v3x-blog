@@ -2,6 +2,7 @@ import { Global, Module } from '@nestjs/common';
 import {
   CATEGORY_REPOSITORY_TOKEN,
   COMMENT_REPOSITORY_TOKEN,
+  IMAGE_REPOSITORY_TOKEN,
   POST_REPOSITORY_TOKEN,
   SESSION_REPOSITORY_TOKEN,
   USER_REPOSITORY_TOKEN,
@@ -9,6 +10,7 @@ import {
 import {
   DrizzleCategoryRepository,
   DrizzleCommentRepository,
+  DrizzleImageRepository,
   DrizzlePostRepository,
   DrizzleSessionRepository,
   DrizzleUserRepository,
@@ -24,6 +26,10 @@ import {
     {
       provide: COMMENT_REPOSITORY_TOKEN,
       useClass: DrizzleCommentRepository,
+    },
+    {
+      provide: IMAGE_REPOSITORY_TOKEN,
+      useClass: DrizzleImageRepository,
     },
     {
       provide: USER_REPOSITORY_TOKEN,
@@ -42,6 +48,10 @@ import {
     {
       provide: COMMENT_REPOSITORY_TOKEN,
       useClass: DrizzleCommentRepository,
+    },
+    {
+      provide: IMAGE_REPOSITORY_TOKEN,
+      useClass: DrizzleImageRepository,
     },
     {
       provide: USER_REPOSITORY_TOKEN,
