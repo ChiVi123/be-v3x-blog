@@ -6,6 +6,7 @@ import type {
   PostQuery,
   PostRepository,
   PostRow,
+  PostStatusInput,
   PostUpdateInput,
 } from '~application/repositories/post.repository';
 import type { PostEntity } from '~domain/entities/post.entity';
@@ -33,10 +34,11 @@ function calcReadingTime(content: string): number {
 }
 
 // Chỉ thêm điều kiện khi có giá trị, các điều kiện kết hợp bằng AND
-function buildPostFilter({ author, category }: Pick<PostQuery, 'author' | 'category'>) {
+function buildPostFilter({ author, category, status }: Pick<PostQuery, 'author' | 'category' | 'status'>) {
   return {
     ...(author ? { authorId: { eq: author } } : {}),
     ...(category ? { categoryId: { eq: category } } : {}),
+    ...(status ? { status: { eq: status } } : {}),
   };
 }
 
@@ -68,6 +70,15 @@ export class DrizzlePostRepository implements PostRepository {
     return result;
   }
 
+  async updateStatus(id: PostId, input: PostStatusInput): Promise<PostEntity> {
+    const [result] = await this.db
+      .update(posts)
+      .set({ ...input, updatedAt: new Date() })
+      .where(eq(posts.id, id))
+      .returning();
+    return result;
+  }
+
   async delete(id: PostId): Promise<void> {
     await this.db.delete(posts).where(eq(posts.id, id));
   }
@@ -90,11 +101,11 @@ export class DrizzlePostRepository implements PostRepository {
   }
 
   async findAll(query: PostQuery): Promise<PostRow[]> {
-    const { page = 1, limit = 10, author, category, sortBy = 'createdAt', sortOrder = 'desc' } = query;
+    const { page = 1, limit = 10, author, category, status, sortBy = 'createdAt', sortOrder = 'desc' } = query;
     const offset = Math.max(0, (page - 1) * limit);
 
     const postsResult = await this.db.query.posts.findMany({
-      where: buildPostFilter({ author, category }),
+      where: buildPostFilter({ author, category, status }),
       limit,
       offset,
       orderBy: (posts, { desc, asc }) => (sortOrder === 'desc' ? [desc(posts[sortBy])] : [asc(posts[sortBy])]),
@@ -115,12 +126,16 @@ export class DrizzlePostRepository implements PostRepository {
   }
 
   async count(query: PostQuery): Promise<number> {
-    const { author, category } = query;
+    const { author, category, status } = query;
     const result = await this.db
       .select({ count: count(posts.id) })
       .from(posts)
       .where(
-        and(author ? eq(posts.authorId, author) : undefined, category ? eq(posts.categoryId, category) : undefined),
+        and(
+          author ? eq(posts.authorId, author) : undefined,
+          category ? eq(posts.categoryId, category) : undefined,
+          status ? eq(posts.status, status) : undefined,
+        ),
       );
 
     return result[0].count;

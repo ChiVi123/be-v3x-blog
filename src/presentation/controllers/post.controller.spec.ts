@@ -4,8 +4,7 @@ import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import { Test, type TestingModule } from '@nestjs/testing';
 import { PostFacade } from '~application/facades/post.facade';
 import type { PostDetail, PostRow } from '~application/repositories/post.repository';
-import { Role } from '~domain/entities';
-import type { PostEntity } from '~domain/entities/post.entity';
+import { type PostEntity, PostStatus, Role } from '~domain/entities';
 import type { CategoryId, ImageId, PostId, UserId } from '~domain/types/branded';
 import { AUTH_SERVICE_TOKEN } from '~infrastructure/config/provider-tokens';
 import { PostController } from '~presentation/controllers/post.controller';
@@ -18,9 +17,12 @@ describe('PostController', () => {
     createPost: ReturnType<typeof mock>;
     listPosts: ReturnType<typeof mock>;
     queryPosts: ReturnType<typeof mock>;
+    listMyPosts: ReturnType<typeof mock>;
     getPost: ReturnType<typeof mock>;
     getPostDetail: ReturnType<typeof mock>;
+    getManagedPost: ReturnType<typeof mock>;
     updatePost: ReturnType<typeof mock>;
+    changePostStatus: ReturnType<typeof mock>;
     deletePost: ReturnType<typeof mock>;
   };
 
@@ -30,6 +32,8 @@ describe('PostController', () => {
     slug: 'test-post',
     content: 'Valid content that has more than twenty characters.',
     readingTime: 5,
+    status: PostStatus.DRAFT,
+    publishedAt: null,
     categoryId: 'Tech' as CategoryId,
     authorId: 'user-1' as UserId,
     thumbnailId: null as ImageId | null,
@@ -44,6 +48,8 @@ describe('PostController', () => {
     createdAt: new Date('2026-01-01T00:00:00Z'),
     updatedAt: new Date('2026-01-01T00:00:00Z'),
     readingTime: 5,
+    status: PostStatus.PUBLISHED,
+    publishedAt: new Date('2026-01-02T00:00:00Z'),
     author: null,
     category: null,
     thumbnail: null,
@@ -57,6 +63,8 @@ describe('PostController', () => {
     createdAt: new Date('2026-01-01T00:00:00Z'),
     updatedAt: new Date('2026-01-01T00:00:00Z'),
     readingTime: 5,
+    status: PostStatus.PUBLISHED,
+    publishedAt: new Date('2026-01-02T00:00:00Z'),
     author: null,
     category: null,
     thumbnail: null,
@@ -67,9 +75,12 @@ describe('PostController', () => {
       createPost: mock(async () => mockPost),
       listPosts: mock(async () => ({ data: [mockPostRow] })),
       queryPosts: mock(async () => ({ data: [mockPostRow], total: 1 })),
+      listMyPosts: mock(async () => ({ data: [mockPostRow], total: 1 })),
       getPost: mock(async () => mockPost),
       getPostDetail: mock(async () => mockPostDetail),
+      getManagedPost: mock(async () => mockPost),
       updatePost: mock(async () => ({ ...mockPost, title: 'Updated Title' })),
+      changePostStatus: mock(async () => ({ ...mockPost, status: PostStatus.PUBLISHED })),
       deletePost: mock(async () => undefined),
     };
 
@@ -115,6 +126,37 @@ describe('PostController', () => {
 
       expect(mockPostFacade.queryPosts).toHaveBeenCalledWith(query);
       expect(result).toEqual({ data: [mockPostRow], total: 1 });
+    });
+  });
+
+  describe('getMyPosts', () => {
+    it('should attach the authenticated userId as authorId and delegate to postFacade.listMyPosts', async () => {
+      const userId = 'user-1' as UserId;
+      const result = await controller.getMyPosts({ page: 1, limit: 10, status: PostStatus.DRAFT }, userId);
+
+      expect(mockPostFacade.listMyPosts).toHaveBeenCalledWith({
+        page: 1,
+        limit: 10,
+        status: PostStatus.DRAFT,
+        authorId: userId,
+      });
+      expect(result).toEqual({ data: [mockPostRow], total: 1 });
+    });
+  });
+
+  describe('getMyPost', () => {
+    it('should pass id, requester id and role to postFacade.getManagedPost', async () => {
+      const postId = 'post-1' as PostId;
+      const userId = 'user-1' as UserId;
+
+      const result = await controller.getMyPost(postId, userId, Role.USER);
+
+      expect(mockPostFacade.getManagedPost).toHaveBeenCalledWith({
+        id: postId,
+        authorId: userId,
+        requesterRole: Role.USER,
+      });
+      expect(result).toEqual(mockPost);
     });
   });
 
@@ -173,6 +215,23 @@ describe('PostController', () => {
         requesterRole: Role.ADMIN,
       });
       expect(result.title).toBe('Updated Title');
+    });
+  });
+
+  describe('updatePostStatus', () => {
+    it('should pass the requested status together with requester info to postFacade.changePostStatus', async () => {
+      const postId = 'post-1' as PostId;
+      const userId = 'user-1' as UserId;
+
+      const result = await controller.updatePostStatus(postId, { status: PostStatus.PUBLISHED }, userId, Role.USER);
+
+      expect(mockPostFacade.changePostStatus).toHaveBeenCalledWith({
+        id: postId,
+        authorId: userId,
+        requesterRole: Role.USER,
+        status: PostStatus.PUBLISHED,
+      });
+      expect(result.status).toBe(PostStatus.PUBLISHED);
     });
   });
 

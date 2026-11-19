@@ -1,9 +1,8 @@
 import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import type { PostDetail, PostRepository, PostRow } from '~application/repositories/post.repository';
 import type { TransformService } from '~application/services/transform.service';
-import type { PostEntity } from '~domain/entities/post.entity';
-import { Role } from '~domain/entities/user.entity';
-import { EntityNotFoundException, ForbiddenException } from '~domain/exceptions';
+import { type PostEntity, PostStatus, Role } from '~domain/entities';
+import { EntityNotFoundException, ForbiddenException, PostNotPublishableException } from '~domain/exceptions';
 import type { CategoryId, ImageId, PostId, UserId } from '~domain/types/branded';
 import { PostFacade } from './post.facade';
 
@@ -15,10 +14,13 @@ describe('PostFacade', () => {
     findBy: ReturnType<typeof mock>;
     findAll: ReturnType<typeof mock>;
     update: ReturnType<typeof mock>;
+    updateStatus: ReturnType<typeof mock>;
     delete: ReturnType<typeof mock>;
     count: ReturnType<typeof mock>;
   };
   let mockTransformService: { slugify: ReturnType<typeof mock> };
+
+  const publishedAt = new Date('2026-01-02T00:00:00Z');
 
   const mockPost: PostEntity = {
     id: 'post-1' as PostId,
@@ -26,6 +28,8 @@ describe('PostFacade', () => {
     slug: 'original-title',
     content: 'Original content with plenty of detail.',
     readingTime: 5,
+    status: PostStatus.PUBLISHED,
+    publishedAt,
     categoryId: 'Tech' as CategoryId,
     authorId: 'user-1' as UserId,
     thumbnailId: null as ImageId | null,
@@ -33,11 +37,20 @@ describe('PostFacade', () => {
     updatedAt: new Date('2026-01-01T00:00:00Z'),
   };
 
+  const draftPost: PostEntity = {
+    ...mockPost,
+    status: PostStatus.DRAFT,
+    publishedAt: null,
+    thumbnailId: 'image-1' as ImageId,
+  };
+
   const mockPostRow: PostRow = {
     id: 'post-1' as PostId,
     title: 'Original Title',
     slug: 'original-title',
     readingTime: 5,
+    status: PostStatus.PUBLISHED,
+    publishedAt,
     createdAt: new Date('2026-01-01T00:00:00Z'),
     updatedAt: new Date('2026-01-01T00:00:00Z'),
     author: null,
@@ -51,6 +64,8 @@ describe('PostFacade', () => {
     slug: 'original-title',
     content: 'Original content with plenty of detail.',
     readingTime: 5,
+    status: PostStatus.PUBLISHED,
+    publishedAt,
     createdAt: new Date('2026-01-01T00:00:00Z'),
     updatedAt: new Date('2026-01-01T00:00:00Z'),
     author: null,
@@ -71,6 +86,10 @@ describe('PostFacade', () => {
         ...mockPost,
         ...(input as object),
       })),
+      updateStatus: mock(async (_id: PostId, input: unknown) => ({
+        ...mockPost,
+        ...(input as object),
+      })),
       delete: mock(async () => undefined),
       count: mock(async () => 1),
     };
@@ -86,7 +105,7 @@ describe('PostFacade', () => {
   });
 
   describe('createPost', () => {
-    it('should create post and slugify title', async () => {
+    it('should create the post as a draft and slugify the title', async () => {
       const result = await facade.createPost({
         title: 'New Post',
         content: 'Valid content text here...',
@@ -103,19 +122,23 @@ describe('PostFacade', () => {
         authorId: 'user-1' as UserId,
         categoryId: 'Tech' as CategoryId,
         thumbnailId: null,
+        status: PostStatus.DRAFT,
+        publishedAt: null,
       });
       expect(result.slug).toBe('new-post');
+      expect(result.status).toBe(PostStatus.DRAFT);
     });
   });
 
   describe('listPosts', () => {
-    it('should return posts and apply default page and limit', async () => {
+    it('should return only published posts and apply default page and limit', async () => {
       const result = await facade.listPosts({});
 
       expect(mockPostRepository.findAll).toHaveBeenCalledWith({
         page: 1,
         limit: 10,
         author: undefined,
+        status: PostStatus.PUBLISHED,
       });
       expect(result).toEqual({ data: [mockPostRow] });
     });
@@ -128,22 +151,56 @@ describe('PostFacade', () => {
         page: 2,
         limit: 20,
         author: authorId,
+        status: PostStatus.PUBLISHED,
       });
       expect(result).toEqual({ data: [mockPostRow] });
     });
   });
 
   describe('queryPosts', () => {
-    it('should query posts and return total count', async () => {
+    it('should query published posts and return total count', async () => {
       const result = await facade.queryPosts({ page: 1, limit: 10 });
 
-      expect(mockPostRepository.findAll).toHaveBeenCalledWith({ page: 1, limit: 10 });
+      expect(mockPostRepository.findAll).toHaveBeenCalledWith({ page: 1, limit: 10, status: PostStatus.PUBLISHED });
+      expect(mockPostRepository.count).toHaveBeenCalledWith({ page: 1, limit: 10, status: PostStatus.PUBLISHED });
+      expect(result).toEqual({ data: [mockPostRow], total: 1 });
+    });
+
+    it('should override a status supplied by the caller so drafts are never exposed', async () => {
+      await facade.queryPosts({ page: 1, limit: 10, status: PostStatus.DRAFT });
+
+      expect(mockPostRepository.findAll).toHaveBeenCalledWith({ page: 1, limit: 10, status: PostStatus.PUBLISHED });
+      expect(mockPostRepository.count).toHaveBeenCalledWith({ page: 1, limit: 10, status: PostStatus.PUBLISHED });
+    });
+  });
+
+  describe('listMyPosts', () => {
+    it('should filter by the requester and not force a status', async () => {
+      const result = await facade.listMyPosts({
+        authorId: 'user-1' as UserId,
+        page: 1,
+        limit: 10,
+        status: PostStatus.DRAFT,
+      });
+
+      expect(mockPostRepository.findAll).toHaveBeenCalledWith({
+        page: 1,
+        limit: 10,
+        status: PostStatus.DRAFT,
+        author: 'user-1' as UserId,
+      });
+      expect(mockPostRepository.count).toHaveBeenCalledWith({
+        page: 1,
+        limit: 10,
+        status: PostStatus.DRAFT,
+        author: 'user-1' as UserId,
+      });
       expect(result).toEqual({ data: [mockPostRow], total: 1 });
     });
   });
 
   describe('getPost', () => {
-    it('should return post when found', async () => {
+    it('should return a published post when found', async () => {
       const result = await facade.getPost('post-1' as PostId);
 
       expect(mockPostRepository.findById).toHaveBeenCalledWith('post-1' as PostId);
@@ -153,16 +210,72 @@ describe('PostFacade', () => {
     it('should throw EntityNotFoundException when post not found', async () => {
       mockPostRepository.findById = mock(async () => null);
 
-      expect(facade.getPost('non-existent' as PostId)).rejects.toThrow(EntityNotFoundException);
+      await expect(facade.getPost('non-existent' as PostId)).rejects.toThrow(EntityNotFoundException);
+    });
+
+    it('should hide a draft behind EntityNotFoundException', async () => {
+      mockPostRepository.findById = mock(async () => draftPost);
+
+      await expect(facade.getPost('post-1' as PostId)).rejects.toThrow(EntityNotFoundException);
     });
   });
 
   describe('getPostDetail', () => {
-    it('should delegate to findBy slug', async () => {
+    it('should delegate to findBy slug and return a published post', async () => {
       const result = await facade.getPostDetail('original-title');
 
       expect(mockPostRepository.findBy).toHaveBeenCalledWith('slug', 'original-title');
       expect(result).toEqual(mockPostDetail);
+    });
+
+    it('should throw EntityNotFoundException when the slug does not exist', async () => {
+      mockPostRepository.findBy = mock(async () => null);
+
+      await expect(facade.getPostDetail('missing')).rejects.toThrow(EntityNotFoundException);
+    });
+
+    it('should hide a draft behind EntityNotFoundException', async () => {
+      mockPostRepository.findBy = mock(async () => ({ ...mockPostDetail, status: PostStatus.DRAFT }));
+
+      await expect(facade.getPostDetail('original-title')).rejects.toThrow(EntityNotFoundException);
+    });
+  });
+
+  describe('getManagedPost', () => {
+    it('should let the author read their own draft', async () => {
+      mockPostRepository.findById = mock(async () => draftPost);
+
+      const result = await facade.getManagedPost({ id: 'post-1' as PostId, authorId: 'user-1' as UserId });
+
+      expect(result).toEqual(draftPost);
+    });
+
+    it('should let an admin read a draft written by another user', async () => {
+      mockPostRepository.findById = mock(async () => draftPost);
+
+      const result = await facade.getManagedPost({
+        id: 'post-1' as PostId,
+        authorId: 'admin-user' as UserId,
+        requesterRole: Role.ADMIN,
+      });
+
+      expect(result).toEqual(draftPost);
+    });
+
+    it('should throw ForbiddenException for another regular user', async () => {
+      mockPostRepository.findById = mock(async () => draftPost);
+
+      await expect(
+        facade.getManagedPost({ id: 'post-1' as PostId, authorId: 'other-user' as UserId, requesterRole: Role.USER }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should throw EntityNotFoundException when the post does not exist', async () => {
+      mockPostRepository.findById = mock(async () => null);
+
+      await expect(facade.getManagedPost({ id: 'post-1' as PostId, authorId: 'user-1' as UserId })).rejects.toThrow(
+        EntityNotFoundException,
+      );
     });
   });
 
@@ -200,7 +313,7 @@ describe('PostFacade', () => {
     it('should throw EntityNotFoundException when post does not exist', async () => {
       mockPostRepository.findById = mock(async () => null);
 
-      expect(
+      await expect(
         facade.updatePost({
           id: 'non-existent' as PostId,
           authorId: 'user-1' as UserId,
@@ -210,7 +323,7 @@ describe('PostFacade', () => {
     });
 
     it('should throw ForbiddenException when user is not the author', async () => {
-      expect(
+      await expect(
         facade.updatePost({
           id: 'post-1' as PostId,
           authorId: 'different-user' as UserId,
@@ -234,7 +347,7 @@ describe('PostFacade', () => {
     });
 
     it('should not let a regular user bypass the author check', async () => {
-      expect(
+      await expect(
         facade.updatePost({
           id: 'post-1' as PostId,
           authorId: 'different-user' as UserId,
@@ -242,6 +355,114 @@ describe('PostFacade', () => {
           title: 'Title',
         }),
       ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  describe('changePostStatus', () => {
+    it('should publish a draft and set publishedAt for the first time', async () => {
+      mockPostRepository.findById = mock(async () => draftPost);
+
+      const result = await facade.changePostStatus({
+        id: 'post-1' as PostId,
+        authorId: 'user-1' as UserId,
+        status: PostStatus.PUBLISHED,
+      });
+
+      expect(mockPostRepository.updateStatus).toHaveBeenCalledWith('post-1' as PostId, {
+        status: PostStatus.PUBLISHED,
+        publishedAt: expect.any(Date),
+      });
+      expect(result.status).toBe(PostStatus.PUBLISHED);
+    });
+
+    it('should keep the original publishedAt when a post is published again', async () => {
+      mockPostRepository.findById = mock(async () => ({ ...draftPost, publishedAt }));
+
+      await facade.changePostStatus({
+        id: 'post-1' as PostId,
+        authorId: 'user-1' as UserId,
+        status: PostStatus.PUBLISHED,
+      });
+
+      expect(mockPostRepository.updateStatus).toHaveBeenCalledWith('post-1' as PostId, {
+        status: PostStatus.PUBLISHED,
+        publishedAt,
+      });
+    });
+
+    it('should unpublish a post and keep its publishedAt', async () => {
+      const result = await facade.changePostStatus({
+        id: 'post-1' as PostId,
+        authorId: 'user-1' as UserId,
+        status: PostStatus.DRAFT,
+      });
+
+      expect(mockPostRepository.updateStatus).toHaveBeenCalledWith('post-1' as PostId, {
+        status: PostStatus.DRAFT,
+        publishedAt,
+      });
+      expect(result.status).toBe(PostStatus.DRAFT);
+    });
+
+    it('should do nothing when the post already has the requested status', async () => {
+      const result = await facade.changePostStatus({
+        id: 'post-1' as PostId,
+        authorId: 'user-1' as UserId,
+        status: PostStatus.PUBLISHED,
+      });
+
+      expect(mockPostRepository.updateStatus).not.toHaveBeenCalled();
+      expect(result).toEqual(mockPost);
+    });
+
+    it('should refuse to publish a post without a thumbnail', async () => {
+      mockPostRepository.findById = mock(async () => ({ ...draftPost, thumbnailId: null }));
+
+      await expect(
+        facade.changePostStatus({
+          id: 'post-1' as PostId,
+          authorId: 'user-1' as UserId,
+          status: PostStatus.PUBLISHED,
+        }),
+      ).rejects.toThrow(PostNotPublishableException);
+      expect(mockPostRepository.updateStatus).not.toHaveBeenCalled();
+    });
+
+    it('should throw ForbiddenException when the user is not the author', async () => {
+      mockPostRepository.findById = mock(async () => draftPost);
+
+      await expect(
+        facade.changePostStatus({
+          id: 'post-1' as PostId,
+          authorId: 'different-user' as UserId,
+          requesterRole: Role.USER,
+          status: PostStatus.PUBLISHED,
+        }),
+      ).rejects.toThrow(ForbiddenException);
+      expect(mockPostRepository.updateStatus).not.toHaveBeenCalled();
+    });
+
+    it('should allow an admin to change the status of another user post', async () => {
+      await facade.changePostStatus({
+        id: 'post-1' as PostId,
+        authorId: 'admin-user' as UserId,
+        requesterRole: Role.ADMIN,
+        status: PostStatus.DRAFT,
+      });
+
+      expect(mockPostRepository.updateStatus).toHaveBeenCalled();
+    });
+
+    it('should throw EntityNotFoundException when the post does not exist', async () => {
+      mockPostRepository.findById = mock(async () => null);
+
+      await expect(
+        facade.changePostStatus({
+          id: 'post-1' as PostId,
+          authorId: 'user-1' as UserId,
+          status: PostStatus.PUBLISHED,
+        }),
+      ).rejects.toThrow(EntityNotFoundException);
     });
   });
 
@@ -259,7 +480,7 @@ describe('PostFacade', () => {
     it('should throw EntityNotFoundException when post does not exist', async () => {
       mockPostRepository.findById = mock(async () => null);
 
-      expect(
+      await expect(
         facade.deletePost({
           id: 'non-existent' as PostId,
           authorId: 'user-1' as UserId,
@@ -268,7 +489,7 @@ describe('PostFacade', () => {
     });
 
     it('should throw ForbiddenException when user is not the author', async () => {
-      expect(
+      await expect(
         facade.deletePost({
           id: 'post-1' as PostId,
           authorId: 'intruder' as UserId,

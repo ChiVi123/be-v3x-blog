@@ -7,6 +7,7 @@ import { DB_CLEANUP_TOKEN, TestDatabaseModule } from 'test/utils/test-database.m
 import type { CategoryRepository } from '~application/repositories/category.repository';
 import type { PostRepository } from '~application/repositories/post.repository';
 import type { UserRepository } from '~application/repositories/user.repository';
+import { PostStatus } from '~domain/entities/post.entity';
 import { Role } from '~domain/entities/user.entity';
 import type { CategoryId, UserId } from '~domain/types/branded';
 import {
@@ -30,7 +31,13 @@ describe('PostRepository Integration Tests', () => {
   let categoryX: CategoryId;
   let categoryY: CategoryId;
 
-  async function createPost(title: string, authorId: UserId, categoryId: CategoryId, content = wordsOf(30)) {
+  async function createPost(
+    title: string,
+    authorId: UserId,
+    categoryId: CategoryId,
+    content = wordsOf(30),
+    status: PostStatus = PostStatus.PUBLISHED,
+  ) {
     return postRepository.create({
       title,
       slug: title.toLowerCase().replace(/\s+/g, '-'),
@@ -38,6 +45,8 @@ describe('PostRepository Integration Tests', () => {
       authorId,
       categoryId,
       thumbnailId: null,
+      status,
+      publishedAt: status === PostStatus.PUBLISHED ? new Date() : null,
     });
   }
 
@@ -183,6 +192,91 @@ describe('PostRepository Integration Tests', () => {
       const updated = await postRepository.update(post.id, { title: 'Keep Time Post Renamed' });
 
       expect(updated.readingTime).toBe(3);
+    });
+  });
+
+  describe('status', () => {
+    let authorC: UserId;
+    let categoryZ: CategoryId;
+
+    beforeAll(async () => {
+      const userC = await userRepository.create({
+        username: 'author-c',
+        email: 'author-c@example.com',
+        password: 'hashed',
+        role: Role.USER,
+        avatarId: null,
+        bio: null,
+      });
+      authorC = userC.id;
+      categoryZ = (await categoryRepository.create({ name: 'Category Z', slug: 'category-z' })).id;
+
+      await createPost('Draft C One', authorC, categoryZ, wordsOf(30), PostStatus.DRAFT);
+      await createPost('Draft C Two', authorC, categoryZ, wordsOf(30), PostStatus.DRAFT);
+      await createPost('Published C One', authorC, categoryZ, wordsOf(30), PostStatus.PUBLISHED);
+    });
+
+    it('stores the status and publishedAt passed to create', async () => {
+      const draft = await createPost('Stored Draft', authorC, categoryZ, wordsOf(30), PostStatus.DRAFT);
+      const published = await createPost('Stored Published', authorC, categoryZ, wordsOf(30), PostStatus.PUBLISHED);
+
+      expect(draft.status).toBe(PostStatus.DRAFT);
+      expect(draft.publishedAt).toBeNull();
+      expect(published.status).toBe(PostStatus.PUBLISHED);
+      expect(published.publishedAt).toBeInstanceOf(Date);
+    });
+
+    it('returns posts of every status when no status filter is given', async () => {
+      const result = await postRepository.findAll({ page: 1, limit: 50, author: authorC, category: categoryZ });
+
+      expect(result.some((post) => post.status === PostStatus.DRAFT)).toBe(true);
+      expect(result.some((post) => post.status === PostStatus.PUBLISHED)).toBe(true);
+    });
+
+    it('filters findAll by status', async () => {
+      const drafts = await postRepository.findAll({ page: 1, limit: 50, author: authorC, status: PostStatus.DRAFT });
+      const published = await postRepository.findAll({
+        page: 1,
+        limit: 50,
+        author: authorC,
+        status: PostStatus.PUBLISHED,
+      });
+
+      expect(drafts.every((post) => post.status === PostStatus.DRAFT)).toBe(true);
+      expect(titlesOf(drafts)).toContain('Draft C One');
+      expect(titlesOf(drafts)).not.toContain('Published C One');
+      expect(titlesOf(published)).toContain('Published C One');
+      expect(titlesOf(published)).not.toContain('Draft C One');
+    });
+
+    it('filters count by status and keeps it consistent with findAll', async () => {
+      const query = { page: 1, limit: 50, author: authorC, status: PostStatus.DRAFT };
+
+      const rows = await postRepository.findAll(query);
+      const total = await postRepository.count(query);
+
+      expect(total).toBe(rows.length);
+      expect(total).toBeGreaterThanOrEqual(2);
+    });
+
+    it('updateStatus changes status and publishedAt without touching other fields', async () => {
+      const draft = await createPost('Status Switch', authorC, categoryZ, wordsOf(30), PostStatus.DRAFT);
+      const when = new Date('2026-03-01T00:00:00Z');
+
+      const published = await postRepository.updateStatus(draft.id, {
+        status: PostStatus.PUBLISHED,
+        publishedAt: when,
+      });
+
+      expect(published.status).toBe(PostStatus.PUBLISHED);
+      expect(published.publishedAt?.toISOString()).toBe(when.toISOString());
+      expect(published.title).toBe('Status Switch');
+      expect(published.readingTime).toBe(draft.readingTime);
+
+      const unpublished = await postRepository.updateStatus(draft.id, { status: PostStatus.DRAFT, publishedAt: when });
+
+      expect(unpublished.status).toBe(PostStatus.DRAFT);
+      expect(unpublished.publishedAt?.toISOString()).toBe(when.toISOString());
     });
   });
 });

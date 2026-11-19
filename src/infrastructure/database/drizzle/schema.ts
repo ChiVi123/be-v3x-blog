@@ -1,10 +1,12 @@
 import { sql } from 'drizzle-orm';
 import { index, integer, jsonb, pgEnum, pgTable, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
 import type { ImageMetadata } from '~domain/entities/image.entity';
+import { PostStatus } from '~domain/entities/post.entity';
 import { Role } from '~domain/entities/user.entity';
 import type { CategoryId, CommentId, ImageId, PostId, SessionId, UserId } from '~domain/types/branded';
 
 export const userRoleEnum = pgEnum('user_role', [Role.ADMIN, Role.USER]);
+export const postStatusEnum = pgEnum('post_status', [PostStatus.DRAFT, PostStatus.PUBLISHED]);
 
 const timestamps = {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
@@ -73,6 +75,8 @@ export const posts = pgTable(
     slug: varchar('slug', { length: 255 }).notNull().unique(),
     content: text('content').notNull(),
     readingTime: integer('reading_time').notNull(),
+    status: postStatusEnum('status').default(PostStatus.PUBLISHED).notNull(),
+    publishedAt: timestamp('published_at', { withTimezone: true }),
     categoryId: uuid('category_id')
       .notNull()
       .references(() => categories.id, { onDelete: 'cascade' })

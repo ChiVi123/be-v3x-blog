@@ -1,12 +1,12 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { count, desc, eq } from 'drizzle-orm';
+import { and, count, desc, eq } from 'drizzle-orm';
 import type {
   CategoryDetail,
   CategoryInput,
   CategoryRepository,
   CategoryRow,
 } from '~application/repositories/category.repository';
-import type { CategoryEntity } from '~domain/entities';
+import { type CategoryEntity, PostStatus } from '~domain/entities';
 import type { CategoryId } from '~domain/types/branded';
 import { DRIZZLE_DB_TOKEN } from '~infrastructure/config/provider-tokens';
 import { categories, posts } from '~infrastructure/database/drizzle/schema';
@@ -50,7 +50,7 @@ export class DrizzleCategoryRepository implements CategoryRepository {
     const data = await this.db
       .select({ id: categories.id, name: categories.name, postsCount: count(posts.id) })
       .from(categories)
-      .leftJoin(posts, eq(categories.id, posts.categoryId))
+      .leftJoin(posts, and(eq(categories.id, posts.categoryId), eq(posts.status, PostStatus.PUBLISHED)))
       .groupBy(categories.id)
       .orderBy(desc(categories.createdAt));
     return data;

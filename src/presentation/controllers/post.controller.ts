@@ -18,12 +18,20 @@ import type { Role } from '~domain/entities';
 import type { PostId, UserId } from '~domain/types/branded';
 import { CurrentUser } from '~presentation/decorators';
 // biome-ignore lint/style/useImportType: DTO class is required for NestJS ValidationPipe metadata reflection
-import { CreatePostDto, ListPostQueryDto, UpdatePostDto } from '~presentation/dtos/post/post.dto';
+import {
+  CreatePostDto,
+  ListMyPostQueryDto,
+  ListPostQueryDto,
+  UpdatePostDto,
+  UpdatePostStatusDto,
+} from '~presentation/dtos/post/post.dto';
 import { JwtAuthGuard } from '~presentation/guards';
 
 @Controller('posts')
 export class PostController {
   constructor(private readonly postFacade: PostFacade) {}
+
+  // --- Công khai: chỉ bài đã xuất bản ---
 
   @Get()
   getListPost(@Query() query: ListPostQueryDto) {
@@ -33,6 +41,24 @@ export class PostController {
   @Get('all')
   getAllPost(@Query() query: ListPostQueryDto) {
     return this.postFacade.queryPosts(query);
+  }
+
+  // --- Tác giả / admin: thấy cả bản nháp. Phải khai báo TRƯỚC ':id' để 'me' không bị coi là id. ---
+
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  getMyPosts(@Query() query: ListMyPostQueryDto, @CurrentUser('id') userId: UserId) {
+    return this.postFacade.listMyPosts({ ...query, authorId: userId });
+  }
+
+  @Get('me/:id')
+  @UseGuards(JwtAuthGuard)
+  getMyPost(
+    @Param('id', new ParseUUIDPipe()) id: PostId,
+    @CurrentUser('id') userId: UserId,
+    @CurrentUser('role') role: Role,
+  ) {
+    return this.postFacade.getManagedPost({ id, authorId: userId, requesterRole: role });
   }
 
   @Get(':id')
@@ -62,6 +88,23 @@ export class PostController {
     @CurrentUser('role') role: Role,
   ) {
     return this.postFacade.updatePost({ id: postId, authorId: userId, ...body, requesterRole: role });
+  }
+
+  @Patch(':id/status')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  updatePostStatus(
+    @Param('id', new ParseUUIDPipe()) postId: PostId,
+    @Body() body: UpdatePostStatusDto,
+    @CurrentUser('id') userId: UserId,
+    @CurrentUser('role') role: Role,
+  ) {
+    return this.postFacade.changePostStatus({
+      id: postId,
+      authorId: userId,
+      requesterRole: role,
+      status: body.status,
+    });
   }
 
   @Delete(':id')
