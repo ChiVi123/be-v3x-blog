@@ -1,5 +1,6 @@
+import type { PublicAuthor } from '~application/repositories/user.repository';
 import type { PaginationQuery } from '~application/types/pagination';
-import type { CategoryEntity, ImageEntity, PostEntity, PostStatus, UserEntity } from '~domain/entities';
+import type { CategoryEntity, ImageEntity, PostEntity, PostStatus } from '~domain/entities';
 import type { CategoryId, PostId, UserId } from '~domain/types/branded';
 
 export interface PostRepository {
@@ -30,12 +31,12 @@ export type PostUpdateInput = Partial<
 >;
 export type PostStatusInput = Pick<PostEntity, 'status' | 'publishedAt'>;
 export type PostRow = Omit<PostEntity, 'authorId' | 'thumbnailId' | 'categoryId' | 'content'> & {
-  author: Omit<UserEntity, 'password'> | null;
+  author: PublicAuthor | null;
   category: CategoryEntity | null;
   thumbnail: ImageEntity | null;
 };
 export type PostDetail = Omit<PostEntity, 'authorId' | 'thumbnailId' | 'categoryId'> & {
-  author: Omit<UserEntity, 'password'> | null;
+  author: PublicAuthor | null;
   category: CategoryEntity | null;
   thumbnail: ImageEntity | null;
 };

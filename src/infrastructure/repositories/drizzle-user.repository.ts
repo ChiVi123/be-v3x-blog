@@ -43,7 +43,7 @@ export class DrizzleUserRepository implements UserRepository {
   }
 
   async findById(id: UserId): Promise<Author | null> {
-    const user = await this.db.query.users.findFirst({ where: { id: { eq: id } } });
+    const user = await this.db.query.users.findFirst({ where: { id: { eq: id } }, columns: { password: false } });
     return user ?? null;
   }
 

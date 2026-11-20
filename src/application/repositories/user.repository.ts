@@ -19,4 +19,5 @@ export type UserCreateInput = Omit<UserEntity, 'id' | 'createdAt' | 'updatedAt'>
 export type UserUpdateInput = Omit<Partial<UserCreateInput>, 'email'>;
 export type UserOutput = Omit<UserEntity, 'password'>;
 export type Author = UserOutput;
+export type PublicAuthor = Pick<UserEntity, 'id' | 'username' | 'bio' | 'avatarId' | 'createdAt'>;
 export type UserQuery = PaginationQuery<Pick<UserEntity, 'id' | 'username' | 'email' | 'createdAt' | 'updatedAt'>>;

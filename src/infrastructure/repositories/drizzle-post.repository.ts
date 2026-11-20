@@ -20,9 +20,7 @@ const QUERY_ROW = { authorId: false, categoryId: false, thumbnailId: false, cont
 const QUERY_DETAIL = { authorId: false, categoryId: false, thumbnailId: false } as const;
 const QUERY_WITH = {
   author: {
-    columns: {
-      password: false,
-    },
+    columns: { id: true, username: true, bio: true, avatarId: true, createdAt: true },
   },
   category: true,
   thumbnail: true,

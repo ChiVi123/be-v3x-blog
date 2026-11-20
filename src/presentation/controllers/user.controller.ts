@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Controller, Get, Param, ParseUUIDPipe, Query } from '@nestjs/common';
 // biome-ignore lint/style/useImportType: Facade class is required for NestJS DI reflection
 import { UserFacade } from '~application/facades/user.facade';
 import type { UserId } from '~domain/types/branded';
@@ -15,7 +15,7 @@ export class UserController {
   }
 
   @Get(':id')
-  getAuthor(@Param('id') id: UserId) {
+  getAuthor(@Param('id', new ParseUUIDPipe()) id: UserId) {
     return this.userFacade.getAuthor(id);
   }
 }
