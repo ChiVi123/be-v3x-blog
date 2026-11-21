@@ -51,7 +51,7 @@ describe('ImageController (e2e)', () => {
   async function upload(options: UploadOptions = {}) {
     const form = new FormData();
     if (options.file) {
-      form.append('file', new Blob([options.file.bytes], { type: options.file.type }), options.file.name);
+      form.append('file', new Blob([options.file.bytes as BlobPart], { type: options.file.type }), options.file.name);
     }
     if (options.alt !== undefined) {
       form.append('alt', options.alt);

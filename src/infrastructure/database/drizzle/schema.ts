@@ -2,10 +2,11 @@ import { sql } from 'drizzle-orm';
 import { index, integer, jsonb, pgEnum, pgTable, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
 import type { ImageMetadata } from '~domain/entities/image.entity';
 import { PostStatus } from '~domain/entities/post.entity';
-import { Role } from '~domain/entities/user.entity';
+import { Role, UserStatus } from '~domain/entities/user.entity';
 import type { CategoryId, CommentId, ImageId, PostId, SessionId, UserId } from '~domain/types/branded';
 
 export const userRoleEnum = pgEnum('user_role', [Role.ADMIN, Role.USER]);
+export const userStatusEnum = pgEnum('user_status', [UserStatus.ACTIVE, UserStatus.BANNED]);
 export const postStatusEnum = pgEnum('post_status', [PostStatus.DRAFT, PostStatus.PUBLISHED]);
 
 const timestamps = {
@@ -34,6 +35,7 @@ export const users = pgTable('users', {
   email: varchar('email', { length: 255 }).notNull().unique(),
   password: text('password').notNull(),
   role: userRoleEnum('role').default(Role.USER).notNull(),
+  status: userStatusEnum('status').default(UserStatus.ACTIVE).notNull(),
   bio: varchar('bio', { length: 500 }),
   avatarId: uuid('avatar_id')
     .references(() => images.id, { onDelete: 'set null' })

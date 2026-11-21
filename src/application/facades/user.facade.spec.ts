@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import type { UserOutput, UserRepository } from '~application/repositories/user.repository';
-import { Role } from '~domain/entities/user.entity';
+import { Role, UserStatus } from '~domain/entities/user.entity';
 import { EntityNotFoundException } from '~domain/exceptions';
 import type { UserId } from '~domain/types/branded';
 import { UserFacade } from './user.facade';
@@ -20,6 +20,7 @@ describe('UserFacade', () => {
     username: 'john_doe',
     email: 'john@example.com',
     role: Role.ADMIN,
+    status: UserStatus.ACTIVE,
     bio: 'Writer',
     avatarId: null,
     createdAt,

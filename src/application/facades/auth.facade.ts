@@ -3,8 +3,13 @@ import type { SessionRepository } from '~application/repositories/session.reposi
 import type { UserRepository } from '~application/repositories/user.repository';
 import type { AuthService } from '~application/services/auth.service';
 import type { ClientContext } from '~application/types/use-case.type';
-import { Role } from '~domain/entities/user.entity';
-import { InvalidCredentialsException, UnauthorizedException, UserAlreadyExistsException } from '~domain/exceptions';
+import { Role, UserStatus } from '~domain/entities/user.entity';
+import {
+  ForbiddenException,
+  InvalidCredentialsException,
+  UnauthorizedException,
+  UserAlreadyExistsException,
+} from '~domain/exceptions';
 import type { UserId } from '~domain/types/branded';
 
 export type LoginParams = {
@@ -64,6 +69,10 @@ export class AuthFacade {
       throw new InvalidCredentialsException();
     }
 
+    if (user.status === UserStatus.BANNED) {
+      throw new ForbiddenException('Account is banned');
+    }
+
     const refreshTokenExpiryDate = this.authService.createRefreshTokenExpiryDate();
     const refreshToken = await this.sessionRepository.create({
       userId: user.id,
@@ -118,6 +127,10 @@ export class AuthFacade {
     const user = await this.userRepository.findById(session.userId);
     if (!user) {
       throw new UnauthorizedException('Invalid user');
+    }
+
+    if (user.status === UserStatus.BANNED) {
+      throw new ForbiddenException('Account is banned');
     }
 
     const newRefreshToken = this.authService.generateRefreshToken();

@@ -5,6 +5,10 @@ export enum Role {
   ADMIN = 'admin',
   USER = 'user',
 }
+export enum UserStatus {
+  ACTIVE = 'active',
+  BANNED = 'banned',
+}
 
 export interface UserEntity extends BaseEntity<UserId> {
   username: string;
@@ -13,4 +17,5 @@ export interface UserEntity extends BaseEntity<UserId> {
   role: Role;
   bio: string | null;
   avatarId: ImageId | null;
+  status: UserStatus;
 }

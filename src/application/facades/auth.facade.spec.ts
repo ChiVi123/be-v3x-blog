@@ -3,8 +3,13 @@ import type { SessionFound, SessionRepository } from '~application/repositories/
 import type { UserRepository } from '~application/repositories/user.repository';
 import type { AuthService } from '~application/services/auth.service';
 import type { ClientContext } from '~application/types/use-case.type';
-import { Role, type UserEntity } from '~domain/entities/user.entity';
-import { InvalidCredentialsException, UnauthorizedException, UserAlreadyExistsException } from '~domain/exceptions';
+import { Role, type UserEntity, UserStatus } from '~domain/entities/user.entity';
+import {
+  ForbiddenException,
+  InvalidCredentialsException,
+  UnauthorizedException,
+  UserAlreadyExistsException,
+} from '~domain/exceptions';
 import type { SessionId, UserId } from '~domain/types/branded';
 import { AuthFacade } from './auth.facade';
 
@@ -48,6 +53,7 @@ describe('AuthFacade', () => {
     password: 'hashed-password',
     bio: 'john-bio',
     role: Role.USER,
+    status: UserStatus.ACTIVE,
     avatarId: null,
     createdAt: new Date('2026-01-01T00:00:00Z'),
     updatedAt: new Date('2026-01-01T00:00:00Z'),
@@ -127,6 +133,24 @@ describe('AuthFacade', () => {
         }),
       ).rejects.toThrow(InvalidCredentialsException);
     });
+
+    it('throws ForbiddenException when the account is banned', async () => {
+      mockUserRepository.findByEmail = mock(async () => ({ ...user, status: UserStatus.BANNED }));
+
+      await expect(facade.login({ email: 'john@example.com', password: 'password123', clientContext })).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(mockSessionRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('does not reveal a banned account when the password is wrong', async () => {
+      mockUserRepository.findByEmail = mock(async () => ({ ...user, status: UserStatus.BANNED }));
+      mockAuthService.verifyPassword = mock(async () => false);
+
+      await expect(facade.login({ email: 'john@example.com', password: 'wrong', clientContext })).rejects.toThrow(
+        InvalidCredentialsException,
+      );
+    });
   });
 
   describe('register', () => {
@@ -183,6 +207,15 @@ describe('AuthFacade', () => {
 
       await expect(facade.refresh({ refreshToken: session.refreshToken, clientContext })).rejects.toThrow(
         UnauthorizedException,
+      );
+      expect(mockSessionRepository.rotateRefreshToken).not.toHaveBeenCalled();
+    });
+
+    it('rejects a refresh for a banned user', async () => {
+      mockUserRepository.findById = mock(async () => ({ ...user, status: UserStatus.BANNED }));
+
+      await expect(facade.refresh({ refreshToken: session.refreshToken, clientContext })).rejects.toThrow(
+        ForbiddenException,
       );
       expect(mockSessionRepository.rotateRefreshToken).not.toHaveBeenCalled();
     });

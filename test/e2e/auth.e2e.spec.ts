@@ -69,6 +69,7 @@ describe('AuthController (e2e)', () => {
       email: 'auth_test@example.com',
       password: hashedPassword,
       role: Role.USER,
+      bio: 'auth_bio',
       avatarId: null,
     });
   }, 30000);

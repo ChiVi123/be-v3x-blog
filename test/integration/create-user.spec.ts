@@ -5,7 +5,7 @@ import { ConfigModule } from '@nestjs/config';
 import { Test, type TestingModule } from '@nestjs/testing';
 import { DB_CLEANUP_TOKEN, TestDatabaseModule } from 'test/utils/test-database.module';
 import type { UserRepository } from '~application/repositories/user.repository';
-import { Role } from '~domain/entities/user.entity';
+import { Role, UserStatus } from '~domain/entities/user.entity';
 import type { UserId } from '~domain/types/branded';
 import { USER_REPOSITORY_TOKEN } from '~infrastructure/config/provider-tokens';
 import { DatabaseModule } from '~infrastructure/database/database.module';
@@ -49,6 +49,7 @@ describe('UserRepository Integration Tests', () => {
       expect(typeof result.id).toBe('string');
       expect(result.username).toBe('test-1');
       expect(result.email).toBe('test-1@gmail.com');
+      expect(result.status).toBe(UserStatus.ACTIVE);
       expect(result.role).toBe(Role.USER);
       expect(result.avatarId).toBeNull();
       expect(result.createdAt).toBeInstanceOf(Date);

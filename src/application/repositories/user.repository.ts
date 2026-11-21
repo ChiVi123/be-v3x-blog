@@ -1,5 +1,5 @@
 import type { PaginationQuery } from '~application/types/pagination';
-import type { UserEntity } from '~domain/entities/user.entity';
+import type { Role, UserEntity, UserStatus } from '~domain/entities/user.entity';
 import type { UserId } from '~domain/types/branded';
 
 export interface UserRepository {
@@ -13,11 +13,21 @@ export interface UserRepository {
   count(query: UserQuery): Promise<number>;
   isExist(id: UserId): Promise<boolean>;
   isExistByEmail(email: string): Promise<boolean>;
+  searchAdmin(query: AdminUserQuery): Promise<AdminUserRow[]>;
+  countAdmin(query: AdminUserQuery): Promise<number>;
+  countActiveAdmins(): Promise<number>;
 }
 
-export type UserCreateInput = Omit<UserEntity, 'id' | 'createdAt' | 'updatedAt'>;
+export type UserCreateInput = Omit<UserEntity, 'id' | 'createdAt' | 'updatedAt' | 'status'> & {
+  status?: UserStatus;
+};
 export type UserUpdateInput = Omit<Partial<UserCreateInput>, 'email'>;
 export type UserOutput = Omit<UserEntity, 'password'>;
 export type Author = UserOutput;
 export type PublicAuthor = Pick<UserEntity, 'id' | 'username' | 'bio' | 'avatarId' | 'createdAt'>;
 export type UserQuery = PaginationQuery<Pick<UserEntity, 'id' | 'username' | 'email' | 'createdAt' | 'updatedAt'>>;
+export type AdminUserQuery = UserQuery & {
+  role?: Role;
+  status?: UserStatus;
+};
+export type AdminUserRow = UserOutput & { postsCount: number };

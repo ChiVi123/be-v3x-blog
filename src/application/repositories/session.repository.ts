@@ -1,10 +1,11 @@
 import type { SessionEntity } from '~domain/entities/session.entity';
-import type { SessionId } from '~domain/types/branded';
+import type { SessionId, UserId } from '~domain/types/branded';
 
 export interface SessionRepository {
   create(input: SessionCreateInput): Promise<SessionEntity['refreshToken']>;
   delete(sessionId: SessionId): Promise<void>;
   deleteByRefreshToken(refreshToken: SessionEntity['refreshToken']): Promise<void>;
+  deleteByUserId(userId: UserId): Promise<void>;
   findById(sessionId: SessionId): Promise<SessionEntity | null>;
   findValidByRefreshToken(refreshToken: SessionEntity['refreshToken']): Promise<SessionFound | null>;
   rotateRefreshToken(input: SessionRotationInput): Promise<boolean>;
