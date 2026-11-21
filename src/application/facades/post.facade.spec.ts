@@ -199,6 +199,23 @@ describe('PostFacade', () => {
     });
   });
 
+  describe('listAllPosts', () => {
+    it('should pass the query through untouched so drafts are included, and return the total', async () => {
+      const query = { page: 1, limit: 10, status: PostStatus.DRAFT, author: 'user-1' as UserId };
+      const result = await facade.listAllPosts(query);
+
+      expect(mockPostRepository.findAll).toHaveBeenCalledWith(query);
+      expect(mockPostRepository.count).toHaveBeenCalledWith(query);
+      expect(result).toEqual({ data: [mockPostRow], total: 1 });
+    });
+
+    it('should not force a status when none is given', async () => {
+      await facade.listAllPosts({ page: 1, limit: 10 });
+
+      expect(mockPostRepository.findAll).toHaveBeenCalledWith({ page: 1, limit: 10 });
+    });
+  });
+
   describe('getPost', () => {
     it('should return a published post when found', async () => {
       const result = await facade.getPost('post-1' as PostId);

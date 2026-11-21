@@ -94,6 +94,11 @@ export class PostFacade {
     return { data: posts, total };
   }
 
+  async listAllPosts(query: PostQuery) {
+    const [posts, total] = await Promise.all([this.postRepository.findAll(query), this.postRepository.count(query)]);
+    return { data: posts, total };
+  }
+
   async getManagedPost({ id, authorId, requesterRole }: GetManagedPostParams): Promise<PostEntity> {
     const post = await this.postRepository.findById(id);
     if (!post) {

@@ -9,6 +9,8 @@ import { RepositoriesModule } from '~infrastructure/repositories/repositories.mo
 import { ServicesModule } from '~infrastructure/services/services.module';
 import { GlobalExceptionFilter } from '~presentation/filters';
 import {
+  AdminStatsModule,
+  AdminUserModule,
   AuthModule,
   CategoryModule,
   HealthCheckModule,
@@ -45,6 +47,8 @@ import { AppService } from './app.service';
     UserModule,
     CategoryModule,
     ImageModule,
+    AdminUserModule,
+    AdminStatsModule,
   ],
   controllers: [AppController],
   providers: [
