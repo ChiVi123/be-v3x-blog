@@ -1,8 +1,14 @@
 import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import type { PostDetail, PostRepository, PostRow } from '~application/repositories/post.repository';
+import type { UserOutput, UserRepository } from '~application/repositories/user.repository';
 import type { TransformService } from '~application/services/transform.service';
-import { type PostEntity, PostStatus, Role } from '~domain/entities';
-import { EntityNotFoundException, ForbiddenException, PostNotPublishableException } from '~domain/exceptions';
+import { type PostEntity, PostStatus, Role, UserStatus } from '~domain/entities';
+import {
+  EntityNotFoundException,
+  ForbiddenException,
+  PostNotPublishableException,
+  UnauthorizedException,
+} from '~domain/exceptions';
 import type { CategoryId, ImageId, PostId, UserId } from '~domain/types/branded';
 import { PostFacade } from './post.facade';
 
@@ -18,6 +24,7 @@ describe('PostFacade', () => {
     delete: ReturnType<typeof mock>;
     count: ReturnType<typeof mock>;
   };
+  let mockUserRepository: { findById: ReturnType<typeof mock> };
   let mockTransformService: { slugify: ReturnType<typeof mock> };
 
   const publishedAt = new Date('2026-01-02T00:00:00Z');
@@ -73,6 +80,26 @@ describe('PostFacade', () => {
     thumbnail: null,
   };
 
+  const makeUser = (overrides: Partial<UserOutput> = {}): UserOutput => ({
+    id: 'user-1' as UserId,
+    username: 'john_doe',
+    email: 'john@example.com',
+    role: Role.USER,
+    status: UserStatus.ACTIVE,
+    bio: null,
+    avatarId: null,
+    createdAt: new Date('2026-01-01T00:00:00Z'),
+    updatedAt: new Date('2026-01-01T00:00:00Z'),
+    ...overrides,
+  });
+
+  // Cấu hình người đang thao tác mà DB trả về, bất kể id được hỏi là gì.
+  const setRequester = (user: UserOutput | null) => {
+    mockUserRepository.findById = mock(async () => user);
+  };
+
+  const adminUser = () => makeUser({ id: 'admin-user' as UserId, role: Role.ADMIN });
+
   beforeEach(() => {
     mockPostRepository = {
       create: mock(async (input: unknown) => ({
@@ -94,6 +121,9 @@ describe('PostFacade', () => {
       count: mock(async () => 1),
     };
 
+    // Mặc định: người thao tác là user thường, đang hoạt động.
+    mockUserRepository = { findById: mock(async (id: UserId) => makeUser({ id })) };
+
     mockTransformService = {
       slugify: mock((text: string) => text.toLowerCase().replace(/\s+/g, '-')),
     };
@@ -101,6 +131,7 @@ describe('PostFacade', () => {
     facade = new PostFacade(
       mockPostRepository as unknown as PostRepository,
       mockTransformService as unknown as TransformService,
+      mockUserRepository as unknown as UserRepository,
     );
   });
 
@@ -269,12 +300,9 @@ describe('PostFacade', () => {
 
     it('should let an admin read a draft written by another user', async () => {
       mockPostRepository.findById = mock(async () => draftPost);
+      setRequester(adminUser());
 
-      const result = await facade.getManagedPost({
-        id: 'post-1' as PostId,
-        authorId: 'admin-user' as UserId,
-        requesterRole: Role.ADMIN,
-      });
+      const result = await facade.getManagedPost({ id: 'post-1' as PostId, authorId: 'admin-user' as UserId });
 
       expect(result).toEqual(draftPost);
     });
@@ -282,9 +310,9 @@ describe('PostFacade', () => {
     it('should throw ForbiddenException for another regular user', async () => {
       mockPostRepository.findById = mock(async () => draftPost);
 
-      await expect(
-        facade.getManagedPost({ id: 'post-1' as PostId, authorId: 'other-user' as UserId, requesterRole: Role.USER }),
-      ).rejects.toThrow(ForbiddenException);
+      await expect(facade.getManagedPost({ id: 'post-1' as PostId, authorId: 'other-user' as UserId })).rejects.toThrow(
+        ForbiddenException,
+      );
     });
 
     it('should throw EntityNotFoundException when the post does not exist', async () => {
@@ -350,10 +378,11 @@ describe('PostFacade', () => {
     });
 
     it('should allow an admin to update a post written by another user', async () => {
+      setRequester(adminUser());
+
       const result = await facade.updatePost({
         id: 'post-1' as PostId,
         authorId: 'admin-user' as UserId,
-        requesterRole: Role.ADMIN,
         content: 'Moderated content here.',
       });
 
@@ -363,15 +392,18 @@ describe('PostFacade', () => {
       expect(result.content).toBe('Moderated content here.');
     });
 
-    it('should not let a regular user bypass the author check', async () => {
+    it('should use the role stored in the database, not a role claimed by the token', async () => {
+      // DB nói user thường (admin đã bị hạ quyền) nên không được sửa bài người khác.
+      setRequester(makeUser({ id: 'demoted-admin' as UserId, role: Role.USER }));
+
       await expect(
         facade.updatePost({
           id: 'post-1' as PostId,
-          authorId: 'different-user' as UserId,
-          requesterRole: Role.USER,
+          authorId: 'demoted-admin' as UserId,
           title: 'Title',
         }),
       ).rejects.toThrow(ForbiddenException);
+      expect(mockPostRepository.update).not.toHaveBeenCalled();
     });
   });
 
@@ -452,7 +484,6 @@ describe('PostFacade', () => {
         facade.changePostStatus({
           id: 'post-1' as PostId,
           authorId: 'different-user' as UserId,
-          requesterRole: Role.USER,
           status: PostStatus.PUBLISHED,
         }),
       ).rejects.toThrow(ForbiddenException);
@@ -460,10 +491,11 @@ describe('PostFacade', () => {
     });
 
     it('should allow an admin to change the status of another user post', async () => {
+      setRequester(adminUser());
+
       await facade.changePostStatus({
         id: 'post-1' as PostId,
         authorId: 'admin-user' as UserId,
-        requesterRole: Role.ADMIN,
         status: PostStatus.DRAFT,
       });
 
@@ -515,13 +547,60 @@ describe('PostFacade', () => {
     });
 
     it('should allow an admin to delete a post written by another user', async () => {
+      setRequester(adminUser());
+
       await facade.deletePost({
         id: 'post-1' as PostId,
         authorId: 'admin-user' as UserId,
-        requesterRole: Role.ADMIN,
       });
 
       expect(mockPostRepository.delete).toHaveBeenCalledWith('post-1' as PostId);
     });
+  });
+
+  describe('requester checks', () => {
+    const userId = 'user-1' as UserId;
+    const postId = 'post-1' as PostId;
+
+    const operations: Array<[string, () => Promise<unknown>]> = [
+      [
+        'createPost',
+        () =>
+          facade.createPost({
+            title: 'New Post',
+            content: 'Valid content text here...',
+            authorId: userId,
+            categoryId: 'Tech' as CategoryId,
+            thumbnailId: null,
+          }),
+      ],
+      ['getManagedPost', () => facade.getManagedPost({ id: postId, authorId: userId })],
+      ['updatePost', () => facade.updatePost({ id: postId, authorId: userId, title: 'Title' })],
+      ['changePostStatus', () => facade.changePostStatus({ id: postId, authorId: userId, status: PostStatus.DRAFT })],
+      ['deletePost', () => facade.deletePost({ id: postId, authorId: userId })],
+    ];
+
+    const expectNothingWritten = () => {
+      expect(mockPostRepository.create).not.toHaveBeenCalled();
+      expect(mockPostRepository.update).not.toHaveBeenCalled();
+      expect(mockPostRepository.updateStatus).not.toHaveBeenCalled();
+      expect(mockPostRepository.delete).not.toHaveBeenCalled();
+    };
+
+    for (const [name, run] of operations) {
+      it(`${name} rejects a banned requester with ForbiddenException`, async () => {
+        setRequester(makeUser({ status: UserStatus.BANNED }));
+
+        await expect(run()).rejects.toThrow(ForbiddenException);
+        expectNothingWritten();
+      });
+
+      it(`${name} rejects a requester that no longer exists with UnauthorizedException`, async () => {
+        setRequester(null);
+
+        await expect(run()).rejects.toThrow(UnauthorizedException);
+        expectNothingWritten();
+      });
+    }
   });
 });

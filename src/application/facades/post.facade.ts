@@ -1,36 +1,37 @@
 import type { PostInput, PostQuery, PostRepository, PostUpdateInput } from '~application/repositories/post.repository';
+import type { UserRepository } from '~application/repositories/user.repository';
 import type { TransformService } from '~application/services/transform.service';
-import { type PostEntity, PostStatus, Role } from '~domain/entities';
-import { EntityNotFoundException, ForbiddenException, PostNotPublishableException } from '~domain/exceptions';
+import { type PostEntity, PostStatus, Role, UserStatus } from '~domain/entities';
+import {
+  EntityNotFoundException,
+  ForbiddenException,
+  PostNotPublishableException,
+  UnauthorizedException,
+} from '~domain/exceptions';
 import type { PostId, UserId } from '~domain/types/branded';
 
 // Bài mới luôn là bản nháp; trạng thái được facade đặt, không nhận từ client.
 export type CreatePostParams = Omit<PostInput, 'slug' | 'status' | 'publishedAt'>;
 
-// `authorId` là id của người đang thực hiện thao tác.
-// Thiếu `requesterRole` thì coi như không phải admin (an toàn mặc định).
+// `authorId` là id của người đang thực hiện thao tác. Role được facade đọc từ DB, không nhận từ token.
 export type UpdatePostParams = PostUpdateInput & {
   id: PostId;
   authorId: UserId;
-  requesterRole?: Role;
 };
 
 export type DeletePostParams = {
   id: PostId;
   authorId: UserId;
-  requesterRole?: Role;
 };
 
 export type GetManagedPostParams = {
   id: PostId;
   authorId: UserId;
-  requesterRole?: Role;
 };
 
 export type ChangePostStatusParams = {
   id: PostId;
   authorId: UserId;
-  requesterRole?: Role;
   status: PostStatus;
 };
 
@@ -42,7 +43,7 @@ export type ListPostInput = {
 
 export type ListMyPostsParams = Omit<PostQuery, 'author'> & { authorId: UserId };
 
-function canManagePost(post: PostEntity, requesterId: UserId, requesterRole?: Role): boolean {
+function canManagePost(post: PostEntity, requesterId: UserId, requesterRole: Role): boolean {
   return post.authorId === requesterId || requesterRole === Role.ADMIN;
 }
 
@@ -50,6 +51,7 @@ export class PostFacade {
   constructor(
     private readonly postRepository: PostRepository,
     private readonly transformService: TransformService,
+    private readonly userRepository: UserRepository,
   ) {}
 
   // --- Queries công khai: chỉ trả bài đã xuất bản ---
@@ -99,7 +101,9 @@ export class PostFacade {
     return { data: posts, total };
   }
 
-  async getManagedPost({ id, authorId, requesterRole }: GetManagedPostParams): Promise<PostEntity> {
+  async getManagedPost({ id, authorId }: GetManagedPostParams): Promise<PostEntity> {
+    const requesterRole = await this.requireActiveRequester(authorId);
+
     const post = await this.postRepository.findById(id);
     if (!post) {
       throw new EntityNotFoundException('Post', id);
@@ -115,12 +119,15 @@ export class PostFacade {
   // --- Commands ---
 
   async createPost(params: CreatePostParams): Promise<PostEntity> {
+    await this.requireActiveRequester(params.authorId);
+
     const slug = this.transformService.slugify(params.title);
     return this.postRepository.create({ ...params, slug, status: PostStatus.DRAFT, publishedAt: null });
   }
 
   async updatePost(params: UpdatePostParams): Promise<PostEntity> {
-    const { id, authorId, requesterRole, ...updateData } = params;
+    const { id, authorId, ...updateData } = params;
+    const requesterRole = await this.requireActiveRequester(authorId);
 
     const existingPost = await this.postRepository.findById(id);
     if (!existingPost) {
@@ -139,7 +146,9 @@ export class PostFacade {
     return this.postRepository.update(id, updatePayload);
   }
 
-  async changePostStatus({ id, authorId, requesterRole, status }: ChangePostStatusParams): Promise<PostEntity> {
+  async changePostStatus({ id, authorId, status }: ChangePostStatusParams): Promise<PostEntity> {
+    const requesterRole = await this.requireActiveRequester(authorId);
+
     const existingPost = await this.postRepository.findById(id);
     if (!existingPost) {
       throw new EntityNotFoundException('Post', id);
@@ -165,7 +174,9 @@ export class PostFacade {
     return this.postRepository.updateStatus(id, { status, publishedAt });
   }
 
-  async deletePost({ id, authorId, requesterRole }: DeletePostParams): Promise<void> {
+  async deletePost({ id, authorId }: DeletePostParams): Promise<void> {
+    const requesterRole = await this.requireActiveRequester(authorId);
+
     const existingPost = await this.postRepository.findById(id);
     if (!existingPost) {
       throw new EntityNotFoundException('Post', id);
@@ -176,5 +187,17 @@ export class PostFacade {
     }
 
     await this.postRepository.delete(id);
+  }
+
+  // Đọc role từ DB (không tin JWT): user bị khóa hoặc bị hạ quyền mất hiệu lực ngay.
+  private async requireActiveRequester(userId: UserId): Promise<Role> {
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+    if (user.status === UserStatus.BANNED) {
+      throw new ForbiddenException('Account is banned');
+    }
+    return user.role;
   }
 }

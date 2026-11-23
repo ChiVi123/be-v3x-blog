@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import { Test, type TestingModule } from '@nestjs/testing';
 import { PostFacade } from '~application/facades/post.facade';
 import type { PostDetail, PostRow } from '~application/repositories/post.repository';
-import { type PostEntity, PostStatus, Role } from '~domain/entities';
+import { type PostEntity, PostStatus } from '~domain/entities';
 import type { CategoryId, ImageId, PostId, UserId } from '~domain/types/branded';
 import { AUTH_SERVICE_TOKEN } from '~infrastructure/config/provider-tokens';
 import { PostController } from '~presentation/controllers/post.controller';
@@ -145,17 +145,13 @@ describe('PostController', () => {
   });
 
   describe('getMyPost', () => {
-    it('should pass id, requester id and role to postFacade.getManagedPost', async () => {
+    it('should pass id and requester id to postFacade.getManagedPost', async () => {
       const postId = 'post-1' as PostId;
       const userId = 'user-1' as UserId;
 
-      const result = await controller.getMyPost(postId, userId, Role.USER);
+      const result = await controller.getMyPost(postId, userId);
 
-      expect(mockPostFacade.getManagedPost).toHaveBeenCalledWith({
-        id: postId,
-        authorId: userId,
-        requesterRole: Role.USER,
-      });
+      expect(mockPostFacade.getManagedPost).toHaveBeenCalledWith({ id: postId, authorId: userId });
       expect(result).toEqual(mockPost);
     });
   });
@@ -206,29 +202,27 @@ describe('PostController', () => {
       const userId = 'user-1' as UserId;
       const body = { title: 'Updated Title' };
 
-      const result = await controller.updatePost(postId, body, userId, Role.ADMIN);
+      const result = await controller.updatePost(postId, body, userId);
 
       expect(mockPostFacade.updatePost).toHaveBeenCalledWith({
         id: postId,
         authorId: userId,
         ...body,
-        requesterRole: Role.ADMIN,
       });
       expect(result.title).toBe('Updated Title');
     });
   });
 
   describe('updatePostStatus', () => {
-    it('should pass the requested status together with requester info to postFacade.changePostStatus', async () => {
+    it('should pass the requested status together with requester id to postFacade.changePostStatus', async () => {
       const postId = 'post-1' as PostId;
       const userId = 'user-1' as UserId;
 
-      const result = await controller.updatePostStatus(postId, { status: PostStatus.PUBLISHED }, userId, Role.USER);
+      const result = await controller.updatePostStatus(postId, { status: PostStatus.PUBLISHED }, userId);
 
       expect(mockPostFacade.changePostStatus).toHaveBeenCalledWith({
         id: postId,
         authorId: userId,
-        requesterRole: Role.USER,
         status: PostStatus.PUBLISHED,
       });
       expect(result.status).toBe(PostStatus.PUBLISHED);
@@ -240,12 +234,11 @@ describe('PostController', () => {
       const postId = 'post-1' as PostId;
       const userId = 'user-1' as UserId;
 
-      await controller.deletePost(postId, userId, Role.USER);
+      await controller.deletePost(postId, userId);
 
       expect(mockPostFacade.deletePost).toHaveBeenCalledWith({
         id: postId,
         authorId: userId,
-        requesterRole: Role.USER,
       });
     });
   });
