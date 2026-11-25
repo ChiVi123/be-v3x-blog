@@ -17,6 +17,7 @@ describe('PostFacade', () => {
   let mockPostRepository: {
     create: ReturnType<typeof mock>;
     findById: ReturnType<typeof mock>;
+    findDetailById: ReturnType<typeof mock>;
     findBy: ReturnType<typeof mock>;
     findAll: ReturnType<typeof mock>;
     update: ReturnType<typeof mock>;
@@ -108,6 +109,7 @@ describe('PostFacade', () => {
       })),
       findById: mock(async () => mockPost),
       findBy: mock(async () => mockPostDetail),
+      findDetailById: mock(async () => ({ ...mockPost, author: null, thumbnail: null })),
       findAll: mock(async () => [mockPostRow]),
       update: mock(async (_id: PostId, input: unknown) => ({
         ...mockPost,
@@ -290,25 +292,28 @@ describe('PostFacade', () => {
   });
 
   describe('getManagedPost', () => {
-    it('should let the author read their own draft', async () => {
-      mockPostRepository.findById = mock(async () => draftPost);
+    const draftDetail = { ...draftPost, author: null, thumbnail: null };
+
+    it('should let the author read their own draft together with its thumbnail and author', async () => {
+      mockPostRepository.findDetailById = mock(async () => draftDetail);
 
       const result = await facade.getManagedPost({ id: 'post-1' as PostId, authorId: 'user-1' as UserId });
 
-      expect(result).toEqual(draftPost);
+      expect(mockPostRepository.findDetailById).toHaveBeenCalledWith('post-1' as PostId);
+      expect(result).toEqual(draftDetail);
     });
 
     it('should let an admin read a draft written by another user', async () => {
-      mockPostRepository.findById = mock(async () => draftPost);
+      mockPostRepository.findDetailById = mock(async () => draftDetail);
       setRequester(adminUser());
 
       const result = await facade.getManagedPost({ id: 'post-1' as PostId, authorId: 'admin-user' as UserId });
 
-      expect(result).toEqual(draftPost);
+      expect(result).toEqual(draftDetail);
     });
 
     it('should throw ForbiddenException for another regular user', async () => {
-      mockPostRepository.findById = mock(async () => draftPost);
+      mockPostRepository.findDetailById = mock(async () => draftDetail);
 
       await expect(facade.getManagedPost({ id: 'post-1' as PostId, authorId: 'other-user' as UserId })).rejects.toThrow(
         ForbiddenException,
@@ -316,7 +321,7 @@ describe('PostFacade', () => {
     });
 
     it('should throw EntityNotFoundException when the post does not exist', async () => {
-      mockPostRepository.findById = mock(async () => null);
+      mockPostRepository.findDetailById = mock(async () => null);
 
       await expect(facade.getManagedPost({ id: 'post-1' as PostId, authorId: 'user-1' as UserId })).rejects.toThrow(
         EntityNotFoundException,
@@ -325,7 +330,9 @@ describe('PostFacade', () => {
   });
 
   describe('updatePost', () => {
-    it('should update post and generate new slug when title changes', async () => {
+    it('should generate a new slug when the title changes and the post is a draft', async () => {
+      mockPostRepository.findById = mock(async () => draftPost);
+
       const result = await facade.updatePost({
         id: 'post-1' as PostId,
         authorId: 'user-1' as UserId,
@@ -340,6 +347,21 @@ describe('PostFacade', () => {
       });
       expect(result.title).toBe('New Updated Title');
       expect(result.slug).toBe('new-updated-title');
+    });
+
+    it('should keep the slug when the title changes on a published post', async () => {
+      const result = await facade.updatePost({
+        id: 'post-1' as PostId,
+        authorId: 'user-1' as UserId,
+        title: 'New Updated Title',
+      });
+
+      expect(mockTransformService.slugify).not.toHaveBeenCalled();
+      expect(mockPostRepository.update).toHaveBeenCalledWith('post-1' as PostId, {
+        title: 'New Updated Title',
+      });
+      expect(result.title).toBe('New Updated Title');
+      expect(result.slug).toBe('original-title');
     });
 
     it('should update other fields without regenerating slug if title is not provided', async () => {

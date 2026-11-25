@@ -1,4 +1,10 @@
-import type { PostInput, PostQuery, PostRepository, PostUpdateInput } from '~application/repositories/post.repository';
+import type {
+  PostInput,
+  PostManaged,
+  PostQuery,
+  PostRepository,
+  PostUpdateInput,
+} from '~application/repositories/post.repository';
 import type { UserRepository } from '~application/repositories/user.repository';
 import type { TransformService } from '~application/services/transform.service';
 import { type PostEntity, PostStatus, Role, UserStatus } from '~domain/entities';
@@ -101,10 +107,10 @@ export class PostFacade {
     return { data: posts, total };
   }
 
-  async getManagedPost({ id, authorId }: GetManagedPostParams): Promise<PostEntity> {
+  async getManagedPost({ id, authorId }: GetManagedPostParams): Promise<PostManaged> {
     const requesterRole = await this.requireActiveRequester(authorId);
 
-    const post = await this.postRepository.findById(id);
+    const post = await this.postRepository.findDetailById(id);
     if (!post) {
       throw new EntityNotFoundException('Post', id);
     }
@@ -139,7 +145,7 @@ export class PostFacade {
     }
 
     const updatePayload: PostUpdateInput = { ...updateData };
-    if (updateData.title) {
+    if (updateData.title && existingPost.status === PostStatus.DRAFT) {
       updatePayload.slug = this.transformService.slugify(updateData.title);
     }
 

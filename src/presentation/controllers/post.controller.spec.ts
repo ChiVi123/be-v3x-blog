@@ -3,7 +3,7 @@ import 'reflect-metadata';
 import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import { Test, type TestingModule } from '@nestjs/testing';
 import { PostFacade } from '~application/facades/post.facade';
-import type { PostDetail, PostRow } from '~application/repositories/post.repository';
+import type { PostDetail, PostManaged, PostRow } from '~application/repositories/post.repository';
 import { type PostEntity, PostStatus } from '~domain/entities';
 import type { CategoryId, ImageId, PostId, UserId } from '~domain/types/branded';
 import { AUTH_SERVICE_TOKEN } from '~infrastructure/config/provider-tokens';
@@ -70,6 +70,8 @@ describe('PostController', () => {
     thumbnail: null,
   };
 
+  const mockPostManaged: PostManaged = { ...mockPost, author: null, thumbnail: null };
+
   beforeEach(async () => {
     mockPostFacade = {
       createPost: mock(async () => mockPost),
@@ -78,7 +80,7 @@ describe('PostController', () => {
       listMyPosts: mock(async () => ({ data: [mockPostRow], total: 1 })),
       getPost: mock(async () => mockPost),
       getPostDetail: mock(async () => mockPostDetail),
-      getManagedPost: mock(async () => mockPost),
+      getManagedPost: mock(async () => mockPostManaged),
       updatePost: mock(async () => ({ ...mockPost, title: 'Updated Title' })),
       changePostStatus: mock(async () => ({ ...mockPost, status: PostStatus.PUBLISHED })),
       deletePost: mock(async () => undefined),
@@ -152,7 +154,7 @@ describe('PostController', () => {
       const result = await controller.getMyPost(postId, userId);
 
       expect(mockPostFacade.getManagedPost).toHaveBeenCalledWith({ id: postId, authorId: userId });
-      expect(result).toEqual(mockPost);
+      expect(result).toEqual(mockPostManaged);
     });
   });
 
