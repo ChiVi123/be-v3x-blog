@@ -9,6 +9,7 @@ export interface PostRepository {
   updateStatus(id: PostId, input: PostStatusInput): Promise<PostEntity>;
   delete(id: PostId): Promise<void>;
   findById(id: PostId): Promise<PostEntity | null>;
+  findDetailById(id: PostId): Promise<PostManaged | null>;
   findBy<Key extends keyof PostEntity, Value extends PostEntity[Key]>(
     key: Key,
     value: Value,
@@ -38,5 +39,10 @@ export type PostRow = Omit<PostEntity, 'authorId' | 'thumbnailId' | 'categoryId'
 export type PostDetail = Omit<PostEntity, 'authorId' | 'thumbnailId' | 'categoryId'> & {
   author: PublicAuthor | null;
   category: CategoryEntity | null;
+  thumbnail: ImageEntity | null;
+};
+
+export type PostManaged = PostEntity & {
+  author: PublicAuthor | null;
   thumbnail: ImageEntity | null;
 };

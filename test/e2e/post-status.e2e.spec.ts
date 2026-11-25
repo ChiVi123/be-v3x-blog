@@ -139,6 +139,19 @@ describe('Post status (e2e)', () => {
       postSlug = body.slug;
     });
 
+    it('returns 409 when another post already uses the same title', async () => {
+      const response = await call('POST', '/posts', {
+        token: authorToken,
+        body: {
+          title: 'My first draft post',
+          content: 'This content is definitely longer than twenty characters.',
+          categoryId,
+        },
+      });
+
+      expect(response.status).toBe(409);
+    });
+
     it('rejects a status sent by the client', async () => {
       const response = await call('POST', '/posts', {
         token: authorToken,
@@ -264,6 +277,17 @@ describe('Post status (e2e)', () => {
       const body = await response.json();
       expect(body.status).toBe('published');
       expect(body.publishedAt).not.toBeNull();
+    });
+
+    it('returns the thumbnail object and the public author when the owner opens the post by id', async () => {
+      const response = await call('GET', `/posts/me/${postId}`, { token: authorToken });
+
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.thumbnailId).toBe(imageId);
+      expect(body.thumbnail.url).toBe('https://res.cloudinary.com/demo/image/upload/status-test.png');
+      expect(body.author.username).toBe('status_author');
+      expect(Object.keys(body.author).sort()).toEqual(['avatarId', 'bio', 'createdAt', 'id', 'username']);
     });
 
     it('makes the published post visible to everyone', async () => {

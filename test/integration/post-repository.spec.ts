@@ -9,6 +9,7 @@ import type { PostRepository } from '~application/repositories/post.repository';
 import type { UserRepository } from '~application/repositories/user.repository';
 import { PostStatus } from '~domain/entities/post.entity';
 import { Role } from '~domain/entities/user.entity';
+import { ConflictException } from '~domain/exceptions';
 import type { CategoryId, UserId } from '~domain/types/branded';
 import {
   CATEGORY_REPOSITORY_TOKEN,
@@ -277,6 +278,21 @@ describe('PostRepository Integration Tests', () => {
 
       expect(unpublished.status).toBe(PostStatus.DRAFT);
       expect(unpublished.publishedAt?.toISOString()).toBe(when.toISOString());
+    });
+  });
+
+  describe('slug uniqueness', () => {
+    it('throws ConflictException when creating a post whose slug is already used', async () => {
+      await createPost('Duplicate Slug Post', authorA, categoryX);
+
+      await expect(createPost('Duplicate Slug Post', authorA, categoryX)).rejects.toThrow(ConflictException);
+    });
+
+    it('throws ConflictException when updating a post to a slug already used', async () => {
+      await createPost('Taken Slug Post', authorA, categoryX);
+      const other = await createPost('Other Slug Post', authorA, categoryX);
+
+      await expect(postRepository.update(other.id, { slug: 'taken-slug-post' })).rejects.toThrow(ConflictException);
     });
   });
 });

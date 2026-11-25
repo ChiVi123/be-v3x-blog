@@ -3,6 +3,7 @@ import { and, count, eq } from 'drizzle-orm';
 import type {
   PostDetail,
   PostInput,
+  PostManaged,
   PostQuery,
   PostRepository,
   PostRow,
@@ -10,6 +11,7 @@ import type {
   PostUpdateInput,
 } from '~application/repositories/post.repository';
 import type { PostEntity } from '~domain/entities/post.entity';
+import { ConflictException } from '~domain/exceptions';
 import type { PostId, UserId } from '~domain/types/branded';
 import { DRIZZLE_DB_TOKEN } from '~infrastructure/config/provider-tokens';
 import { posts } from '~infrastructure/database/drizzle/schema';
@@ -31,6 +33,27 @@ function calcReadingTime(content: string): number {
   return Math.max(1, Math.ceil(words / WORDS_PER_MINUTE));
 }
 
+const UNIQUE_VIOLATION = '23505';
+
+function isUniqueViolation(error: unknown): boolean {
+  let current: unknown = error;
+  for (let depth = 0; depth < 3 && typeof current === 'object' && current !== null; depth += 1) {
+    if ((current as { code?: unknown }).code === UNIQUE_VIOLATION) {
+      return true;
+    }
+    current = (current as { cause?: unknown }).cause;
+  }
+  return false;
+}
+
+// Trùng slug thì báo ConflictException (409); lỗi khác giữ nguyên.
+function rethrowWriteError(error: unknown): never {
+  if (isUniqueViolation(error)) {
+    throw new ConflictException('A post with this title already exists');
+  }
+  throw error;
+}
+
 // Chỉ thêm điều kiện khi có giá trị, các điều kiện kết hợp bằng AND
 function buildPostFilter({ author, category, status }: Pick<PostQuery, 'author' | 'category' | 'status'>) {
   return {
@@ -48,24 +71,32 @@ export class DrizzlePostRepository implements PostRepository {
   constructor(@Inject(DRIZZLE_DB_TOKEN) private readonly db: DrizzleDB) {}
 
   async create(post: PostInput): Promise<PostEntity> {
-    const [result] = await this.db
-      .insert(posts)
-      .values({ ...post, readingTime: calcReadingTime(post.content) })
-      .returning();
-    return result;
+    try {
+      const [result] = await this.db
+        .insert(posts)
+        .values({ ...post, readingTime: calcReadingTime(post.content) })
+        .returning();
+      return result;
+    } catch (error) {
+      rethrowWriteError(error);
+    }
   }
 
   async update(id: PostId, post: PostUpdateInput): Promise<PostEntity> {
-    const [result] = await this.db
-      .update(posts)
-      .set({
-        ...post,
-        ...(post.content !== undefined ? { readingTime: calcReadingTime(post.content) } : {}),
-        updatedAt: new Date(),
-      })
-      .where(eq(posts.id, id))
-      .returning();
-    return result;
+    try {
+      const [result] = await this.db
+        .update(posts)
+        .set({
+          ...post,
+          ...(post.content !== undefined ? { readingTime: calcReadingTime(post.content) } : {}),
+          updatedAt: new Date(),
+        })
+        .where(eq(posts.id, id))
+        .returning();
+      return result;
+    } catch (error) {
+      rethrowWriteError(error);
+    }
   }
 
   async updateStatus(id: PostId, input: PostStatusInput): Promise<PostEntity> {
@@ -83,6 +114,14 @@ export class DrizzlePostRepository implements PostRepository {
 
   async findById(id: PostId): Promise<PostEntity | null> {
     const post = await this.db.query.posts.findFirst({ where: { id: { eq: id } } });
+    return post ?? null;
+  }
+
+  async findDetailById(id: PostId): Promise<PostManaged | null> {
+    const post = await this.db.query.posts.findFirst({
+      where: { id: { eq: id } },
+      with: { author: QUERY_WITH.author, thumbnail: true },
+    });
     return post ?? null;
   }
 
